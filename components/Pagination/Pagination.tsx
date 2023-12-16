@@ -1,175 +1,176 @@
 import {
+  Button,
+  ButtonGroup,
   Flex,
   FormLabel,
   HStack,
   Icon,
   IconButton,
   Select,
-  Text,
+  Skeleton,
 } from '@chakra-ui/react'
 import { IoChevronBackSharp } from '@react-icons/all-files/io5/IoChevronBackSharp'
 import { IoChevronForward } from '@react-icons/all-files/io5/IoChevronForward'
-import { useMemo } from 'react'
+import useTranslation from 'next-translate/useTranslation'
+import { useRouter } from 'next/router'
+import { JSX } from 'react'
+import Link from '../Link/Link'
 
 export type IProp = {
-  limit: number
   page: number
-  total?: number
-  onPageChange: (page: number) => void
-  result: {
-    label: string
-    caption: (context: {
-      from: number
-      to: number
-      total: number
-    }) => string | JSX.Element
-    pages: (context: { total: number }) => string | JSX.Element
-  }
-  hideSelectors?: boolean
-  limits?: number[]
+  hasNextPage: boolean | undefined
+  hasPreviousPage: boolean | undefined
+  onPageChange?: (page: number) => void
   onLimitChange?: (limit: string) => void
+  withoutLimit?: boolean
+  withoutNumbers?: boolean
+  limit?: number
+  limits?: number[]
 }
 
 export default function Pagination({
-  limit,
-  onPageChange,
   page,
-  result,
-  total,
-  hideSelectors,
-  limits,
+  hasNextPage,
+  hasPreviousPage,
+  onPageChange,
   onLimitChange,
+  limit,
+  limits,
+  withoutLimit,
+  withoutNumbers,
   ...props
 }: IProp): JSX.Element {
-  const goTo = (newPage: number) => {
-    if (!total) return
-    if (page === newPage) return
-    if (newPage < 1) return onPageChange(1)
-    if (newPage > Math.ceil(total / limit))
-      return onPageChange(Math.ceil(total / limit))
-    return onPageChange(newPage)
-  }
+  const { t } = useTranslation('components')
+  const { pathname, query } = useRouter()
 
-  const totalPage = useMemo(
-    () => (total ? Math.ceil(total / limit) : 1),
-    [limit, total],
-  )
+  if (hasPreviousPage === undefined || hasNextPage === undefined)
+    return (
+      <Flex align={{ base: 'flex-end', sm: 'center' }} justify="space-between">
+        <Skeleton w={3 / 8} h={10} />
+        <Skeleton w={2 / 8} h={8} />
+      </Flex>
+    )
 
-  if (!total) return <></>
   return (
     <Flex
-      direction={{ base: hideSelectors ? 'row' : 'column', md: 'row' }}
-      align={{ base: 'center', sm: 'flex-start' }}
-      justify={{ base: 'center', sm: 'space-between' }}
+      direction={{ base: withoutLimit ? 'row' : 'column', sm: 'row' }}
+      align={{ base: 'flex-end', sm: 'center' }}
+      justify="space-between"
       w="full"
-      gap={{ base: 6, md: 3 }}
+      gap={{ base: 6, sm: 3 }}
       flexWrap="wrap"
       {...props}
     >
-      <Flex
-        align={{ base: 'flex-start', sm: 'center' }}
-        gap={6}
-        w={{ base: 'full', sm: 'auto' }}
-        direction={{ base: 'column', sm: 'row' }}
-      >
-        {!hideSelectors && (
-          <Flex
-            position="relative"
-            direction={{
-              base: 'column',
-              sm: 'row',
-            }}
-            gap={3}
+      {!withoutLimit && limit && limits && onLimitChange && (
+        <Flex gap={3} display={{ base: 'none', sm: 'flex' }}>
+          <HStack spacing={1} minWidth="max">
+            <FormLabel m={0}>{t('pagination.label')}</FormLabel>
+          </HStack>
+          <Select
+            cursor="pointer"
+            w="24"
+            onChange={(e) => onLimitChange(e.target.value)}
+            value={limit.toString()}
           >
-            <HStack spacing={1} minWidth="max">
-              <FormLabel m={0}>{result.label}</FormLabel>
-            </HStack>
-            <Select
-              cursor="pointer"
-              w="24"
-              onChange={(e) => onLimitChange?.(e.target.value)}
-              value={limit.toString()}
-            >
-              {limits?.map((limit) => (
-                <option key={limit.toString()} value={limit.toString()}>
-                  {limit.toString()}
-                </option>
-              ))}
-            </Select>
-          </Flex>
-        )}
-        <Text
-          as="span"
-          variant="text-sm"
-          color="gray.500"
-          mt={{ base: 'auto', sm: 0 }}
-          w="full"
-        >
-          {result.caption({
-            from: (page - 1) * limit + 1,
-            to: Math.min((page - 1) * limit + limit, total || Infinity),
-            total: total,
-          })}
-        </Text>
-      </Flex>
+            {limits.map((limit) => (
+              <option key={limit.toString()} value={limit.toString()}>
+                {limit.toString()}
+              </option>
+            ))}
+          </Select>
+        </Flex>
+      )}
       <Flex
         as="nav"
-        justify={{ base: 'space-between', md: 'flex-end' }}
-        w={{ base: 'full', sm: 'auto' }}
-        gap={6}
         aria-label="Pagination"
+        justify="flex-end"
+        flex="auto"
+        gap={4}
       >
-        {!hideSelectors && (
-          <Flex align="center" gap={3}>
-            <Flex
-              position="relative"
-              direction={{
-                base: 'column',
-                sm: 'column',
-              }}
-            >
-              <Select
-                onChange={(e) => goTo(parseInt(e.target.value, 10))}
-                value={page.toString()}
-                cursor="pointer"
-                w="24"
+        <IconButton
+          as={onPageChange ? undefined : Link}
+          href={
+            onPageChange
+              ? undefined
+              : { pathname, query: { ...query, page: page - 1 } }
+          }
+          variant="outline"
+          colorScheme="gray"
+          rounded="full"
+          size="sm"
+          aria-label="previous"
+          icon={<Icon as={IoChevronBackSharp} h={4} w={4} aria-hidden="true" />}
+          isDisabled={!hasPreviousPage}
+          pointerEvents={hasPreviousPage ? undefined : 'none'}
+          onClick={onPageChange ? () => onPageChange(page - 1) : undefined}
+        />
+        {!withoutNumbers && (
+          <ButtonGroup>
+            {hasPreviousPage && (
+              <Button
+                as={onPageChange ? undefined : Link}
+                href={
+                  onPageChange
+                    ? undefined
+                    : { pathname, query: { ...query, page: page - 1 } }
+                }
+                size="sm"
+                variant="outline"
+                colorScheme="gray"
+                onClick={
+                  onPageChange ? () => onPageChange(page - 1) : undefined
+                }
               >
-                {Array.from({ length: totalPage }, (_, i) => i + 1).map(
-                  (page) => (
-                    <option key={page} value={page}>
-                      {page.toString()}
-                    </option>
-                  ),
-                )}
-              </Select>
-            </Flex>
-            <Text as="p" variant="text-sm" color="gray.500" w="full">
-              {result.pages({ total: totalPage })}
-            </Text>
-          </Flex>
+                {page - 1}
+              </Button>
+            )}
+            <Button
+              as={onPageChange ? undefined : Link}
+              href={onPageChange ? undefined : { pathname, query }}
+              size="sm"
+              variant="outline"
+              colorScheme="brand"
+              onClick={onPageChange ? () => onPageChange(page) : undefined}
+            >
+              {page}
+            </Button>
+            {hasNextPage && (
+              <Button
+                as={onPageChange ? undefined : Link}
+                href={
+                  onPageChange
+                    ? undefined
+                    : { pathname, query: { ...query, page: page + 1 } }
+                }
+                size="sm"
+                variant="outline"
+                colorScheme="gray"
+                onClick={
+                  onPageChange ? () => onPageChange(page + 1) : undefined
+                }
+              >
+                {page + 1}
+              </Button>
+            )}
+          </ButtonGroup>
         )}
-        <Flex align="center" gap={4}>
-          <IconButton
-            variant="outline"
-            colorScheme="gray"
-            rounded="full"
-            aria-label="previous"
-            icon={
-              <Icon as={IoChevronBackSharp} h={5} w={5} aria-hidden="true" />
-            }
-            isDisabled={page === 1}
-            onClick={() => goTo(page - 1)}
-          />
-          <IconButton
-            variant="outline"
-            colorScheme="gray"
-            rounded="full"
-            aria-label="next"
-            icon={<Icon as={IoChevronForward} h={5} w={5} aria-hidden="true" />}
-            isDisabled={page === totalPage}
-            onClick={() => goTo(page + 1)}
-          />
-        </Flex>
+        <IconButton
+          as={onPageChange ? undefined : Link}
+          href={
+            onPageChange
+              ? undefined
+              : { pathname, query: { ...query, page: page + 1 } }
+          }
+          variant="outline"
+          colorScheme="gray"
+          rounded="full"
+          size="sm"
+          aria-label="next"
+          icon={<Icon as={IoChevronForward} h={4} w={4} aria-hidden="true" />}
+          isDisabled={!hasNextPage}
+          pointerEvents={hasNextPage ? undefined : 'none'}
+          onClick={onPageChange ? () => onPageChange(page + 1) : undefined}
+        />
       </Flex>
     </Flex>
   )

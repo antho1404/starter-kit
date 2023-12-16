@@ -8,7 +8,7 @@ query FetchOnSaleAssets(
 ) {
   onSale: assets(
     filter: {
-      ownershipsExist: true
+      quantity: { greaterThan: "0" }
       salesAndAuctions: {
         some: {
           creatorAddress: { equalTo: $address }
@@ -20,7 +20,10 @@ query FetchOnSaleAssets(
     offset: $offset
     orderBy: $orderBy
   ) {
-    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
     nodes {
       ...AssetDetail
     }

@@ -8,7 +8,7 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { HiXCircle } from '@react-icons/all-files/hi/HiXCircle'
-import { PropsWithChildren } from 'react'
+import { JSX, PropsWithChildren } from 'react'
 
 export type ListItemProps = StackProps & {
   image?: JSX.Element
@@ -35,7 +35,7 @@ export function ListItem({
   ...props
 }: ListItemProps): JSX.Element {
   return (
-    <Stack {...props} as="li" padding={2}>
+    <Stack padding={2} {...props} as="li">
       <Flex align="center" gap={3}>
         {image && (
           <Flex

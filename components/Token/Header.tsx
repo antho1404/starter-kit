@@ -6,79 +6,33 @@ import {
   SimpleGrid,
   Stack,
 } from '@chakra-ui/react'
-import { Signer } from '@ethersproject/abstract-signer'
-import { BigNumber } from '@ethersproject/bignumber'
-import { useMemo, VFC } from 'react'
-import { MintType, Standard } from '../../graphql'
-import useBlockExplorer from '../../hooks/useBlockExplorer'
+import { FC, useMemo } from 'react'
+import { FetchFeaturedAssetsQuery } from '../../graphql'
+import useDetectAssetMedia from '../../hooks/useDetectAssetMedia'
 import Link from '../Link/Link'
-import type { Props as SaleDetailProps } from '../Sales/Detail'
 import SaleDetail from '../Sales/Detail'
 import TokenMedia from '../Token/Media'
-import type { Props as TokenAssetProps } from '../Token/Metadata'
 import TokenMetadata from '../Token/Metadata'
 
 export type Props = {
-  asset: {
-    id: string
-    name: string
-    image: string
-    animationUrl: string | null | undefined
-    unlockedContent: { url: string; mimetype: string | null } | null | undefined
-    saleSupply: BigNumber
-    collection: {
-      name: string
-      address: string
-      standard: Standard
-      chainId: number
-      mintType: MintType
-    }
-    totalSupply: BigNumber
-    owned: BigNumber
-  }
+  asset: NonNullable<FetchFeaturedAssetsQuery['assets']>['nodes'][0]
   currencies: {
     chainId: number
     image: string
   }[]
-  creator: TokenAssetProps['creator']
-  owners: TokenAssetProps['owners']
-  numberOfOwners: TokenAssetProps['numberOfOwners']
-  auction: SaleDetailProps['auction']
-  bestBid: SaleDetailProps['bestBid']
-  sales: SaleDetailProps['directSales']
   isHomepage: boolean
-  signer: Signer | undefined
-  currentAccount: string | null | undefined
   onOfferCanceled: (id: string) => Promise<void>
   onAuctionAccepted: (id: string) => Promise<void>
 }
 
-const TokenHeader: VFC<Props> = ({
+const TokenHeader: FC<Props> = ({
   asset,
   currencies,
-  creator,
-  owners,
-  numberOfOwners,
-  auction,
-  bestBid,
-  sales,
   isHomepage,
-  signer,
-  currentAccount,
   onOfferCanceled,
   onAuctionAccepted,
 }) => {
-  const blockExplorer = useBlockExplorer(asset.collection.chainId)
-  const isOwner = useMemo(() => asset.owned.gt('0'), [asset])
-
-  const ownAllSupply = useMemo(
-    () => asset.owned.gte(asset.totalSupply),
-    [asset],
-  )
-  const isSingle = useMemo(
-    () => asset.collection.standard === 'ERC721',
-    [asset],
-  )
+  const media = useDetectAssetMedia(asset)
 
   const chainCurrencies = useMemo(
     () =>
@@ -107,12 +61,9 @@ const TokenHeader: VFC<Props> = ({
         >
           <AspectRatio w="full" ratio={1}>
             <TokenMedia
-              imageUrl={asset.image}
-              animationUrl={asset.animationUrl}
-              unlockedContent={asset.unlockedContent}
+              {...media}
               defaultText={asset.name}
-              fill={true}
-              // sizes determined from the homepage
+              fill
               sizes="
               (min-width: 30em) 384px,
               100vw"
@@ -135,30 +86,11 @@ const TokenHeader: VFC<Props> = ({
             {asset.name}
           </Heading>
         </Stack>
-        <TokenMetadata
-          assetId={asset.id}
-          creator={creator}
-          owners={owners}
-          numberOfOwners={numberOfOwners}
-          saleSupply={asset.saleSupply}
-          standard={asset.collection.standard}
-          totalSupply={asset.totalSupply}
-          isOpenCollection={asset.collection.mintType === 'PUBLIC'}
-        />
+        <TokenMetadata asset={asset} />
         <SaleDetail
-          blockExplorer={blockExplorer}
-          assetId={asset.id}
-          chainId={asset.collection.chainId}
+          asset={asset}
           currencies={chainCurrencies}
           isHomepage={isHomepage}
-          isOwner={isOwner}
-          isSingle={isSingle}
-          ownAllSupply={ownAllSupply}
-          auction={auction}
-          bestBid={bestBid}
-          directSales={sales}
-          signer={signer}
-          currentAccount={currentAccount}
           onOfferCanceled={onOfferCanceled}
           onAuctionAccepted={onAuctionAccepted}
         />

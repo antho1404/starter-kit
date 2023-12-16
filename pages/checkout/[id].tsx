@@ -23,17 +23,9 @@ import SkeletonImageAndText from '../../components/Skeleton/ImageAndText'
 import SkeletonTokenCard from '../../components/Skeleton/TokenCard'
 import TokenCard from '../../components/Token/Card'
 import Avatar from '../../components/User/Avatar'
-import {
-  convertAsset,
-  convertAuctionWithBestBid,
-  convertSale,
-  convertUser,
-} from '../../convert'
 import { useCheckoutQuery, useFetchAssetForCheckoutQuery } from '../../graphql'
 import useAccount from '../../hooks/useAccount'
-import useBlockExplorer from '../../hooks/useBlockExplorer'
 import useRequiredQueryParamSingle from '../../hooks/useRequiredQueryParamSingle'
-import useSigner from '../../hooks/useSigner'
 import SmallLayout from '../../layouts/small'
 
 type Props = {
@@ -41,7 +33,6 @@ type Props = {
 }
 
 const CheckoutPage: NextPage<Props> = ({ now }) => {
-  const signer = useSigner()
   const { t } = useTranslation('templates')
   const { back, push } = useRouter()
   const toast = useToast()
@@ -50,14 +41,10 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
   const { address } = useAccount()
 
   const date = useMemo(() => new Date(now), [now])
-  const offerQuery = useCheckoutQuery({ variables: { id: offerId } })
+  const { data: offerData } = useCheckoutQuery({ variables: { id: offerId } })
+  const offer = offerData?.offer
 
-  const offer = useMemo(
-    () => offerQuery.data?.offer || offerQuery.previousData?.offer,
-    [offerQuery.data, offerQuery.previousData],
-  )
-
-  const assetQuery = useFetchAssetForCheckoutQuery({
+  const { data: assetData } = useFetchAssetForCheckoutQuery({
     variables: {
       now: date,
       address: address || '',
@@ -67,8 +54,8 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
     },
     skip: !offer,
   })
+  const asset = assetData?.asset
 
-  const asset = useMemo(() => assetQuery?.data?.asset, [assetQuery.data])
   const priceUnit = useMemo(
     () => (offer ? BigNumber.from(offer.unitPrice) : undefined),
     [offer],
@@ -77,8 +64,6 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
     () => asset?.collection.standard === 'ERC721',
     [asset],
   )
-
-  const blockExplorer = useBlockExplorer(asset?.chainId)
 
   const onPurchased = useCallback(async () => {
     if (!asset) return
@@ -89,21 +74,19 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
     await push(`/tokens/${asset.id}`)
   }, [asset, toast, t, push])
 
-  if (!offerQuery.loading) {
-    if (!offer) return <Error statusCode={404} />
-    if (!assetQuery.loading && !asset) return <Error statusCode={404} />
+  if (offer === null || asset === null) {
+    return <Error statusCode={404} />
   }
   return (
     <SmallLayout>
       <Head
-        title={asset ? t('offers.checkout.meta.title', asset) : ''}
+        title={asset && t('offers.checkout.meta.title', asset)}
         description={
-          asset
-            ? t('offers.checkout.meta.description', {
-                name: asset.name,
-                creator: asset.creator.name || asset.creator.address,
-              })
-            : undefined
+          asset &&
+          t('offers.checkout.meta.description', {
+            name: asset.name,
+            creator: asset.creator.name || asset.creator.address,
+          })
         }
         image={asset?.image}
       />
@@ -121,24 +104,7 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
       >
         <GridItem overflow="hidden">
           <Box pointerEvents="none">
-            {assetQuery.loading || !asset ? (
-              <SkeletonTokenCard />
-            ) : (
-              <TokenCard
-                asset={convertAsset(asset)}
-                creator={convertUser(asset.creator, asset.creator.address)}
-                sale={convertSale(asset.firstSale.nodes[0])}
-                auction={
-                  asset.auctions.nodes[0]
-                    ? convertAuctionWithBestBid(asset.auctions.nodes[0])
-                    : undefined
-                }
-                numberOfSales={asset.firstSale.totalCount}
-                hasMultiCurrency={
-                  asset.firstSale.totalCurrencyDistinctCount > 1
-                }
-              />
-            )}
+            {!asset ? <SkeletonTokenCard /> : <TokenCard asset={asset} />}
           </Box>
         </GridItem>
         <GridItem>
@@ -147,15 +113,10 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
               <Heading as="h5" variant="heading3" color="gray.500">
                 {t('offers.checkout.from')}
               </Heading>
-              {offerQuery.loading || !offer ? (
+              {!offer ? (
                 <SkeletonImageAndText />
               ) : (
-                <Avatar
-                  address={offer.maker.address}
-                  image={offer.maker.image}
-                  name={offer.maker.name}
-                  verified={offer.maker.verification?.status === 'VALIDATED'}
-                />
+                <Avatar user={offer.maker} />
               )}
             </Stack>
 
@@ -164,11 +125,12 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
                 {t('offers.checkout.on-sale')}
               </Heading>
               <Flex align="center" gap={3}>
-                {offerQuery.loading || !offer ? (
+                {!offer ? (
                   <SkeletonImageAndText large />
                 ) : (
                   <>
                     <Flex
+                      position="relative"
                       as="span"
                       border="1px"
                       borderColor="gray.200"
@@ -181,8 +143,8 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
                       <Image
                         src={offer.currency.image}
                         alt={`${offer.currency.symbol} Logo`}
-                        width={32}
-                        height={32}
+                        fill
+                        sizes="30px"
                         objectFit="cover"
                       />
                     </Flex>
@@ -207,16 +169,11 @@ const CheckoutPage: NextPage<Props> = ({ now }) => {
             </Stack>
             <Box as="hr" my={8} />
 
-            {offerQuery.loading || !offer ? (
+            {!offer ? (
               <Skeleton width="200px" height="40px" />
             ) : (
               <OfferFormCheckout
-                signer={signer}
-                chainId={offer.asset.chainId}
-                account={address}
                 offer={offer}
-                blockExplorer={blockExplorer}
-                currency={offer.currency}
                 multiple={!isSingle}
                 onPurchased={onPurchased}
               />

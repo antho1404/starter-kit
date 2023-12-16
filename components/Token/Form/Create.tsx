@@ -1,6 +1,4 @@
 import {
-  Button,
-  Checkbox,
   FormControl,
   FormErrorMessage,
   FormHelperText,
@@ -20,16 +18,18 @@ import {
   useDisclosure,
   useToast,
 } from '@chakra-ui/react'
-import { Signer, TypedDataSigner } from '@ethersproject/abstract-signer'
-import { CreateNftStep, useCreateNFT } from '@nft/hooks'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { toAddress } from '@liteflow/core'
+import { CreateNftStep, useCreateNFT } from '@liteflow/react'
 import useTranslation from 'next-translate/useTranslation'
-import { FC, useEffect } from 'react'
+import { FC, useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Standard } from '../../../graphql'
-import { BlockExplorer } from '../../../hooks/useBlockExplorer'
+import useBlockExplorer from '../../../hooks/useBlockExplorer'
+import useEnvironment from '../../../hooks/useEnvironment'
+import useSigner from '../../../hooks/useSigner'
+import { values as traits } from '../../../traits'
 import { formatError } from '../../../utils'
-import ButtonWithNetworkSwitch from '../../Button/SwitchNetwork'
+import ConnectButtonWithNetworkSwitch from '../../Button/ConnectWithNetworkSwitch'
 import Dropzone from '../../Dropzone/Dropzone'
 import CreateCollectibleModal from '../../Modal/CreateCollectible'
 import Select from '../../Select/Select'
@@ -42,42 +42,29 @@ export type FormData = {
   amount: string
   content: File | undefined
   preview: File | undefined
-  isPrivate: boolean
   isAnimation: boolean
 }
 
 type Props = {
-  signer: (Signer & TypedDataSigner) | undefined
   collection: {
     chainId: number
     address: string
     standard: Standard
   }
-  categories: { id: string; title: string }[]
-  blockExplorer: BlockExplorer
-  uploadUrl: string
-  activateUnlockableContent: boolean
-  maxRoyalties: number
   onCreated: (id: string) => void
   onInputChange: (data: Partial<FormData>) => void
-  activateLazyMint: boolean
 }
 
 const TokenFormCreate: FC<Props> = ({
-  signer,
   collection,
-  categories,
-  blockExplorer,
-  uploadUrl,
-  activateUnlockableContent,
-  maxRoyalties,
   onCreated,
   onInputChange,
-  activateLazyMint,
 }) => {
   const { t } = useTranslation('components')
+  const { LAZYMINT, MAX_ROYALTIES } = useEnvironment()
   const toast = useToast()
-  const { openConnectModal } = useConnectModal()
+  const signer = useSigner()
+  const blockExplorer = useBlockExplorer(collection.chainId)
   const {
     isOpen: createCollectibleIsOpen,
     onOpen: createCollectibleOnOpen,
@@ -93,16 +80,18 @@ const TokenFormCreate: FC<Props> = ({
     defaultValues: {
       description: '',
       royalties: '0',
-      isPrivate: false,
     },
   })
   const res = useWatch({ control })
   useEffect(() => onInputChange(res), [res, onInputChange])
 
   // const [transform] = useFileTransformer()
-  const [createNFT, { activeStep, transactionHash }] = useCreateNFT(signer, {
-    uploadUrl,
-  })
+  const [createNFT, { activeStep, transactionHash }] = useCreateNFT(signer)
+
+  const categories = useMemo(
+    () => (traits['Category'] || []).map((x) => ({ id: x, title: x })) || [],
+    [],
+  )
 
   const handleFileDrop = (file: File) => {
     if (!file) return
@@ -114,21 +103,28 @@ const TokenFormCreate: FC<Props> = ({
 
     try {
       createCollectibleOnOpen()
-      if (parseFloat(data.royalties) > maxRoyalties)
+      if (parseFloat(data.royalties) > MAX_ROYALTIES)
         throw new Error('Royalties too high')
-      const assetId = await createNFT({
-        chainId: collection.chainId,
-        collectionAddress: collection.address,
-        name: data.name,
-        description: data.description,
-        content: data.content,
-        preview: data.preview,
-        isAnimation: data.isAnimation,
-        isPrivate: data.isPrivate,
-        amount: collection.standard === 'ERC1155' ? parseInt(data.amount) : 1,
-        royalties: parseFloat(data.royalties),
-        traits: [{ type: 'Category', value: data.category }],
-      })
+      const assetId = await createNFT(
+        {
+          chain: collection.chainId,
+          collection: toAddress(collection.address),
+          supply: collection.standard === 'ERC1155' ? parseInt(data.amount) : 1,
+          royalties: parseFloat(data.royalties),
+          metadata: {
+            name: data.name,
+            description: data.description,
+            attributes: [{ traitType: 'Category', value: data.category }],
+            media: {
+              content: data.content,
+              preview: data.preview,
+              isAnimation: data.isAnimation,
+              isPrivate: false,
+            },
+          },
+        },
+        LAZYMINT,
+      )
 
       onCreated(assetId)
     } catch (e) {
@@ -169,54 +165,40 @@ const TokenFormCreate: FC<Props> = ({
         heading={t('token.form.create.file.heading')}
         hint={t('token.form.create.file.hint')}
         name="content"
-        acceptTypes="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+        acceptTypes={{
+          'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+          'video/*': ['.mp4', '.webm'],
+        }}
         maxSize={100000000} // 100 MB
         required
         control={control}
         error={errors.content}
         onChange={(e) => handleFileDrop(e as unknown as File)}
         value={res.content as any}
-      >
-        {({ hasPreview }) =>
-          hasPreview
-            ? t('token.form.create.file.file.replace')
-            : t('token.form.create.file.file.chose')
-        }
-      </Dropzone>
-      {activateUnlockableContent && (
-        <FormControl>
-          <HStack spacing={1} mb={2}>
-            <FormLabel m={0}>
-              {t('token.form.create.unlockable.label')}
-            </FormLabel>
-            <FormHelperText>
-              {t('token.form.create.unlockable.hint')}
-            </FormHelperText>
-          </HStack>
-          <Checkbox onChange={() => setValue('isPrivate', !res.isPrivate)}>
-            {t('token.form.create.unlockable.choice')}
-          </Checkbox>
-        </FormControl>
-      )}
-      {(res.isAnimation || res.isPrivate) && (
+        context={{
+          replace: t('token.form.create.file.file.replace'),
+          chose: t('token.form.create.file.file.chose'),
+        }}
+      />
+      {res.isAnimation && (
         <Dropzone
           label={t('token.form.create.preview.label')}
           heading={t('token.form.create.preview.heading')}
           hint={t('token.form.create.preview.hint')}
           name="preview"
-          acceptTypes="image/jpeg,image/png,image/gif,image/webp"
+          acceptTypes={{
+            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+          }}
           maxSize={100000000} // 100 MB
           required
           control={control}
           error={errors.preview}
           value={res.preview as any}
-        >
-          {({ hasPreview }) =>
-            hasPreview
-              ? t('token.form.create.preview.file.replace')
-              : t('token.form.create.preview.file.chose')
-          }
-        </Dropzone>
+          context={{
+            replace: t('token.form.create.preview.file.replace'),
+            chose: t('token.form.create.preview.file.chose'),
+          }}
+        />
       )}
       <FormControl isInvalid={!!errors.name}>
         <FormLabel htmlFor="name">
@@ -238,7 +220,7 @@ const TokenFormCreate: FC<Props> = ({
           <FormLabel htmlFor="description" m={0}>
             {t('token.form.create.description.label')}
           </FormLabel>
-          <FormHelperText>
+          <FormHelperText m={0}>
             {t('token.form.create.description.info')}
           </FormHelperText>
         </HStack>
@@ -293,7 +275,7 @@ const TokenFormCreate: FC<Props> = ({
           <FormLabel htmlFor="royalties" m={0}>
             {t('token.form.create.royalties.label')}
           </FormLabel>
-          <FormHelperText>
+          <FormHelperText m={0}>
             {t('token.form.create.royalties.info')}
           </FormHelperText>
         </HStack>
@@ -301,7 +283,7 @@ const TokenFormCreate: FC<Props> = ({
           <NumberInput
             clampValueOnBlur={false}
             min={0}
-            max={maxRoyalties}
+            max={MAX_ROYALTIES}
             step={0.01}
             allowMouseWheel
             w="full"
@@ -314,10 +296,10 @@ const TokenFormCreate: FC<Props> = ({
                 validate: (value) => {
                   if (
                     parseFloat(value) < 0 ||
-                    parseFloat(value) > maxRoyalties
+                    parseFloat(value) > MAX_ROYALTIES
                   ) {
                     return t('token.form.create.validation.in-range', {
-                      max: maxRoyalties,
+                      max: MAX_ROYALTIES,
                     })
                   }
 
@@ -356,23 +338,15 @@ const TokenFormCreate: FC<Props> = ({
         required
         error={errors.category}
       />
-      {signer ? (
-        <ButtonWithNetworkSwitch
-          chainId={collection.chainId}
-          isLoading={activeStep !== CreateNftStep.INITIAL}
-          type="submit"
-        >
-          <Text as="span" isTruncated>
-            {t('token.form.create.submit')}
-          </Text>
-        </ButtonWithNetworkSwitch>
-      ) : (
-        <Button type="button" onClick={openConnectModal}>
-          <Text as="span" isTruncated>
-            {t('token.form.create.submit')}
-          </Text>
-        </Button>
-      )}
+      <ConnectButtonWithNetworkSwitch
+        chainId={collection.chainId}
+        isLoading={activeStep !== CreateNftStep.INITIAL}
+        type="submit"
+      >
+        <Text as="span" isTruncated>
+          {t('token.form.create.submit')}
+        </Text>
+      </ConnectButtonWithNetworkSwitch>
       <CreateCollectibleModal
         isOpen={createCollectibleIsOpen}
         onClose={createCollectibleOnClose}
@@ -380,7 +354,7 @@ const TokenFormCreate: FC<Props> = ({
         step={activeStep}
         blockExplorer={blockExplorer}
         transactionHash={transactionHash}
-        isLazyMint={activateLazyMint}
+        isLazyMint={LAZYMINT}
       />
     </Stack>
   )

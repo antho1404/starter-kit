@@ -20,14 +20,15 @@ query FetchAsset(
       name
       address
       standard
-      name
-      address
       supply
       mintType
     }
     name
     description
-    traits {
+    traits(
+      orderBy: TYPE_ASC
+      first: 100 # TODO: implement pagination
+    ) {
       nodes {
         type
         value
@@ -38,12 +39,9 @@ query FetchAsset(
     }
     quantity
     image
+    imageMimetype
     animationUrl
-    hasUnlockableContent
-    unlockedContent {
-      url
-      mimetype
-    }
+    animationMimetype
     creator {
       address
       name
@@ -52,12 +50,27 @@ query FetchAsset(
         status
       }
     }
-    bestBid: bids(
+    bids(
       orderBy: [UNIT_PRICE_IN_REF_DESC, CREATED_AT_ASC]
       filter: { expiredAt: { greaterThan: $now } }
-      first: 1
+      first: 100 # TODO: implement pagination
     ) {
       nodes {
+        id
+        createdAt
+        expiredAt
+        availableQuantity
+        taker {
+          address
+        }
+        maker {
+          address
+          name
+          image
+          verification {
+            status
+          }
+        }
         unitPrice
         amount
         currency {
@@ -97,6 +110,7 @@ query FetchAsset(
     sales(
       orderBy: [UNIT_PRICE_IN_REF_ASC, CREATED_AT_ASC]
       filter: { expiredAt: { greaterThan: $now } }
+      first: 100 # TODO: implement pagination
     ) {
       nodes {
         id
@@ -135,10 +149,13 @@ query FetchAsset(
           decimals
           symbol
         }
-        offers(
+        bestBid: offers(
           orderBy: [UNIT_PRICE_IN_REF_DESC, CREATED_AT_ASC]
-          filter: { signature: { isNull: false } }
-          first: 1
+          filter: {
+            signature: { isNull: false }
+            expiredAt: { greaterThan: $now }
+          }
+          first: 100 # TODO: implement pagination
         ) {
           nodes {
             id
@@ -168,6 +185,20 @@ query FetchAsset(
           }
         }
       }
+    }
+  }
+  currencies(
+    orderBy: CREATED_AT_ASC
+    filter: { chainId: { equalTo: $chainId }, address: { isNull: false } }
+  ) {
+    nodes {
+      id
+      chainId
+      address
+      decimals
+      symbol
+      name
+      image
     }
   }
 }

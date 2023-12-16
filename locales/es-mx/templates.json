@@ -1,6 +1,15 @@
 {
   "error": {
-    "500": "Lo sentimos, algo salió mal."
+    "404": {
+      "title": "Datos no encontrados",
+      "description": "¡Ups! No pudimos encontrar los datos que está buscando en nuestro servidor. Si el problema persiste, no dude en ponerse en contacto con nuestro equipo de soporte para obtener ayuda."
+    },
+    "500": {
+      "short": "Lo sentimos, algo salió mal.",
+      "title": "Error Interno del Servidor",
+      "description": "¡Ups! Encontramos un problema inesperado en nuestro servidor. Si el problema persiste, no dude en ponerse en contacto con nuestro equipo de soporte para obtener ayuda."
+    },
+    "button": "Soporte de contacto"
   },
   "home": {
     "collections": {
@@ -34,6 +43,8 @@
       "orderBy": {
         "label": "Ordenar por",
         "values": {
+          "priceAsc": "Precio: Bajo - Alto",
+          "priceDesc": "Precio: Alto - Bajo",
           "createdAtDesc": "Fecha: más recientes",
           "createdAtAsc": "Fecha: más antiguos"
         }
@@ -69,6 +80,15 @@
       }
     }
   },
+  "drops": {
+    "title": "Gotas",
+    "empty": {
+      "title": "¿Su caída en la plataforma?",
+      "description": "¡Póngase en contacto con el soporte para crear su primera gota en la plataforma!",
+      "action": "Soporte de contacto"
+    },
+    "past-drops": "Gotas pasadas"
+  },
   "collection": {
     "filter": "Filtros",
     "card": {
@@ -90,8 +110,8 @@
     },
     "orderBy": {
       "values": {
-        "salesMinUnitPriceInRefAsc": "Precio: Bajo - Alto",
-        "salesMinUnitPriceInRefDesc": "Precio: Alto - Bajo",
+        "priceAsc": "Precio: Bajo - Alto",
+        "priceDesc": "Precio: Alto - Bajo",
         "createdAtDesc": "Fecha: Más reciente",
         "createdAtAsc": "Fecha: Más antiguo"
       }
@@ -103,10 +123,6 @@
   },
   "asset": {
     "detail": {
-      "unlockable": {
-        "title": "Contenido desbloqueable",
-        "tooltip": "El contenido del ítem sólo puede ser desbloqueado por el propietario del ítem."
-      },
       "show-preview": "Ver previsualización",
       "description": "Descripción",
       "traits": "Atributos",
@@ -122,6 +138,7 @@
         },
         "refresh-metadata": "Actualizar metadatos"
       },
+      "supply": "X{{supply}}",
       "details": {
         "title": "Detalles",
         "chain": "Cadena",
@@ -222,26 +239,7 @@
       "title": "Oferta por el NFT",
       "notifications": {
         "created": "Tu oferta ha sido creada."
-      },
-      "options": {
-        "label": "Tipo de Oferta",
-        "hints": {
-          "fixed": "Ingresa un precio para permitir a los usuarios comprar instantáneamente el NFT",
-          "auction": "Define un período de tiempo por el cual los usuarios podrán hacer ofertas"
-        },
-        "values": {
-          "fixed": "Precio Fijo",
-          "auction": "Subasta por Tiempo"
-        }
       }
-    }
-  },
-  "pagination": {
-    "result": {
-      "label": "Resultados por página",
-      "caption": "<0>{{from}}</0> - <0>{{to}}</0> de <0>{{total}}</0> resultados",
-      "pages_one": "de {{count}} página",
-      "pages_other": "de {{count}} páginas"
     }
   },
   "user": {
@@ -318,8 +316,10 @@
         "accepted": "Oferta Aceptada"
       },
       "actions": {
-        "accept": "Aceptar"
+        "accept": "Aceptar",
+        "view": "Ver NFT"
       },
+      "auction": "Subasta",
       "orderBy": {
         "label": "Ordenar por",
         "values": {

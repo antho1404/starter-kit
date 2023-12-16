@@ -1,22 +1,19 @@
 import { Box, useToast } from '@chakra-ui/react'
 import { NextPage } from 'next'
 import useTranslation from 'next-translate/useTranslation'
-import Error from 'next/error'
 import { useRouter } from 'next/router'
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import AccountTemplate from '../../components/Account/Account'
 import Head from '../../components/Head'
 import Loader from '../../components/Loader'
 import UserFormEdit from '../../components/User/Form/Edit'
-import environment from '../../environment'
 import { useGetAccountQuery } from '../../graphql'
 import useAccount from '../../hooks/useAccount'
 import useLoginRedirect from '../../hooks/useLoginRedirect'
-import useSigner from '../../hooks/useSigner'
 import SmallLayout from '../../layouts/small'
+import { formatError } from '../../utils'
 
 const EditPage: NextPage = () => {
-  const signer = useSigner()
   const { t } = useTranslation('templates')
   const { push } = useRouter()
   const { address, isLoggedIn } = useAccount()
@@ -24,18 +21,14 @@ const EditPage: NextPage = () => {
 
   const toast = useToast()
 
-  const { data, loading, previousData } = useGetAccountQuery({
+  const { data } = useGetAccountQuery({
     variables: {
       address: address || '',
     },
     skip: !isLoggedIn,
   })
-  const account = useMemo(
-    () => data?.account || previousData?.account,
-    [data, previousData],
-  )
 
-  const onSubmit = useCallback(
+  const onUpdated = useCallback(
     async (address: string) => {
       toast({
         title: t('users.form.notifications.updated'),
@@ -46,25 +39,30 @@ const EditPage: NextPage = () => {
     [toast, t, push],
   )
 
-  if (!loading && !account) return <Error statusCode={404} />
+  const onError = useCallback(
+    async (error: unknown) => {
+      toast({
+        title: formatError(error),
+        status: 'error',
+      })
+    },
+    [toast],
+  )
+
   return (
     <SmallLayout>
       <Head title="Account - Edit profile" />
 
       <AccountTemplate currentTab="edit-profile">
-        {!account ? (
+        {!data?.account ? (
           <Box mt={4}>
             <Loader />
           </Box>
         ) : (
           <UserFormEdit
-            signer={signer}
-            onUpdated={onSubmit}
-            uploadUrl={`${
-              process.env.NEXT_PUBLIC_LITEFLOW_BASE_URL ||
-              'https://api.liteflow.com'
-            }/${environment.LITEFLOW_API_KEY}/uploadToIPFS`}
-            account={account}
+            onUpdated={onUpdated}
+            onError={onError}
+            account={data.account}
           />
         )}
       </AccountTemplate>

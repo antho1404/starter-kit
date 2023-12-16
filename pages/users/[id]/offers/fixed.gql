@@ -14,7 +14,10 @@ query FetchUserFixedPrice(
       makerAddress: { equalTo: $address }
     }
   ) {
-    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
     nodes {
       id
       unitPrice
@@ -36,6 +39,7 @@ query FetchUserFixedPrice(
         tokenId
         name
         image
+        imageMimetype
         owned: ownership(ownerAddress: $address) {
           quantity
         }
@@ -44,7 +48,6 @@ query FetchUserFixedPrice(
         id
         name
         image
-        id
         decimals
         symbol
       }

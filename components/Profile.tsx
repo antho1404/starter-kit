@@ -1,74 +1,40 @@
 import { GridItem, SimpleGrid, Stack } from '@chakra-ui/react'
-import { Signer } from '@ethersproject/abstract-signer'
-import { FC, useMemo } from 'react'
+import { FC, PropsWithChildren } from 'react'
 import type { TabsEnum } from '../components/User/Profile/Navigation'
 import UserProfileNavigation from '../components/User/Profile/Navigation'
-import { convertFullUser } from '../convert'
-import {
-  useFetchAccountDetailQuery,
-  useFetchAccountMetadataQuery,
-} from '../graphql'
+import { useFetchAccountDetailQuery } from '../graphql'
+import useAccount from '../hooks/useAccount'
 import { isSameAddress } from '../utils'
 import Head from './Head'
 import UserProfileBanner from './User/Profile/Banner'
 import UserProfileInfo from './User/Profile/Info'
 
-const UserProfileTemplate: FC<{
-  now: Date
-  signer: Signer | undefined
-  currentAccount: string | null | undefined
+type Props = PropsWithChildren<{
   address: string
   currentTab: TabsEnum
   loginUrlForReferral?: string
-}> = ({
-  now,
-  signer,
-  currentAccount,
+}>
+
+const UserProfileTemplate: FC<Props> = ({
   address,
   currentTab,
   loginUrlForReferral,
   children,
 }) => {
-  const { data, previousData } = useFetchAccountDetailQuery({
+  const { address: currentAccount } = useAccount()
+  const { data: accountData } = useFetchAccountDetailQuery({
     variables: { address },
   })
-  const { data: metadata, previousData: previousMetadata } =
-    useFetchAccountMetadataQuery({ variables: { address, now } })
+  const account = accountData?.account
 
-  const accountData = useMemo(() => data || previousData, [data, previousData])
-
-  const account = useMemo(
-    () => convertFullUser(accountData?.account || null, address),
-    [accountData, address],
-  )
-
-  const metadataData = useMemo(
-    () => metadata || previousMetadata,
-    [metadata, previousMetadata],
-  )
-
-  const totals = useMemo(
-    () =>
-      new Map<TabsEnum, number | undefined>([
-        ['created', metadataData?.created?.totalCount],
-        ['on-sale', metadataData?.onSale?.totalCount],
-        ['owned', metadataData?.owned?.totalCount],
-      ]),
-    [metadataData],
-  )
   return (
     <>
       <Head
         title={account?.name || address}
-        description={account?.description || ''}
-        image={account?.image || ''}
+        description={account?.description || undefined}
+        image={account?.image || undefined}
       />
-      <UserProfileBanner
-        address={address}
-        cover={account?.cover}
-        image={account?.image}
-        name={account?.name}
-      />
+      <UserProfileBanner address={address} user={account} />
       <SimpleGrid
         mb={6}
         spacingX={{ lg: 12 }}
@@ -76,14 +42,8 @@ const UserProfileTemplate: FC<{
         columns={{ base: 1, lg: 4 }}
       >
         <UserProfileInfo
-          signer={signer}
           address={address}
-          description={account?.description}
-          instagram={account?.instagram}
-          name={account?.name}
-          twitter={account?.twitter}
-          website={account?.website}
-          verified={account?.verified}
+          user={account}
           loginUrlForReferral={loginUrlForReferral}
         />
         <GridItem colSpan={{ lg: 3 }}>
@@ -94,7 +54,6 @@ const UserProfileTemplate: FC<{
                 !!currentAccount && isSameAddress(currentAccount, address)
               }
               currentTab={currentTab}
-              totals={totals}
             />
             {children}
           </Stack>

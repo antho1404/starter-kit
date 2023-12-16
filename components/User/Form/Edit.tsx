@@ -8,12 +8,12 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { Signer } from '@ethersproject/abstract-signer'
-import { useUpdateAccount } from '@nft/hooks'
+import { useUpdateAccount } from '@liteflow/react'
 import useTranslation from 'next-translate/useTranslation'
 import { FC, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { Account } from '../../../graphql'
+import useSigner from '../../../hooks/useSigner'
 import Dropzone from '../../Dropzone/Dropzone'
 
 type FormData = {
@@ -28,7 +28,6 @@ type FormData = {
 }
 
 type Props = {
-  signer: Signer | undefined
   account: Pick<
     Account,
     | 'cover'
@@ -40,12 +39,13 @@ type Props = {
     | 'twitter'
     | 'website'
   >
-  uploadUrl: string
   onUpdated: (address: string) => void
+  onError: (error: unknown) => void
 }
 
-const UserFormEdit: FC<Props> = ({ signer, account, uploadUrl, onUpdated }) => {
+const UserFormEdit: FC<Props> = ({ account, onUpdated, onError }) => {
   const { t } = useTranslation('components')
+  const signer = useSigner()
   const {
     control,
     register,
@@ -78,11 +78,15 @@ const UserFormEdit: FC<Props> = ({ signer, account, uploadUrl, onUpdated }) => {
     })
   }, [account, reset])
 
-  const [editAccount] = useUpdateAccount(signer, { uploadUrl })
+  const [editAccount] = useUpdateAccount(signer)
 
   const onSubmit = handleSubmit(async (data) => {
-    const address = await editAccount(data)
-    onUpdated(address)
+    try {
+      const address = await editAccount(data)
+      onUpdated(address)
+    } catch (error) {
+      onError(error)
+    }
   })
 
   return (
@@ -98,38 +102,36 @@ const UserFormEdit: FC<Props> = ({ signer, account, uploadUrl, onUpdated }) => {
         label={t('user.form.edit.image.label')}
         heading={t('user.form.edit.image.heading')}
         hint={t('user.form.edit.image.hint')}
-        acceptTypes="image/jpeg,image/png,image/gif,image/webp"
+        acceptTypes={{ 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] }}
         maxSize={10000000} // 10 MB
         name="image"
         control={control}
         rounded
         withPlaceholder
         value={account.image || undefined}
-      >
-        {({ hasPreview }) =>
-          hasPreview
-            ? t('user.form.edit.image.file.replace')
-            : t('user.form.edit.image.file.chose')
-        }
-      </Dropzone>
+        context={{
+          replace: t('user.form.edit.image.file.replace'),
+          chose: t('user.form.edit.image.file.chose'),
+        }}
+      />
       <Stack spacing={8}>
         <Dropzone
           label={t('user.form.edit.cover.label')}
           heading={t('user.form.edit.cover.heading')}
           hint={t('user.form.edit.cover.hint')}
-          acceptTypes="image/jpeg,image/png,image/gif,image/webp"
+          acceptTypes={{
+            'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+          }}
           maxSize={10000000} // 10 MB
           name="cover"
           control={control}
           withPlaceholder
           value={account.cover || undefined}
-        >
-          {({ hasPreview }) =>
-            hasPreview
-              ? t('user.form.edit.cover.file.replace')
-              : t('user.form.edit.cover.file.chose')
-          }
-        </Dropzone>
+          context={{
+            replace: t('user.form.edit.cover.file.replace'),
+            chose: t('user.form.edit.cover.file.chose'),
+          }}
+        />
         <FormControl>
           <FormLabel htmlFor="name">{t('user.form.edit.name.label')}</FormLabel>
           <Input
@@ -196,7 +198,7 @@ const UserFormEdit: FC<Props> = ({ signer, account, uploadUrl, onUpdated }) => {
             {...register('website')}
           />
         </FormControl>
-        <Button size="lg" isLoading={isSubmitting} type="submit" isFullWidth>
+        <Button size="lg" isLoading={isSubmitting} type="submit" width="full">
           <Text as="span" isTruncated>
             {t('user.form.edit.submit')}
           </Text>

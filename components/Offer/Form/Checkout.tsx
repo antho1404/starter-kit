@@ -4,7 +4,6 @@ import {
   AlertIcon,
   AlertTitle,
   Box,
-  Button,
   FormControl,
   FormErrorMessage,
   FormHelperText,
@@ -16,22 +15,23 @@ import {
   NumberInput,
   NumberInputField,
   NumberInputStepper,
+  Stack,
   Text,
   useDisclosure,
   useToast,
 } from '@chakra-ui/react'
-import { Signer } from '@ethersproject/abstract-signer'
-import { useAcceptOffer } from '@nft/hooks'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useAcceptOffer } from '@liteflow/react'
 import useTranslation from 'next-translate/useTranslation'
-import { FC, useEffect, useMemo } from 'react'
+import { FC, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { Offer } from '../../../graphql'
+import { CheckoutQuery } from '../../../graphql'
+import useAccount from '../../../hooks/useAccount'
 import useBalance from '../../../hooks/useBalance'
-import { BlockExplorer } from '../../../hooks/useBlockExplorer'
+import useBlockExplorer from '../../../hooks/useBlockExplorer'
 import useParseBigNumber from '../../../hooks/useParseBigNumber'
+import useSigner from '../../../hooks/useSigner'
 import { formatError } from '../../../utils'
-import ButtonWithNetworkSwitch from '../../Button/SwitchNetwork'
+import ConnectButtonWithNetworkSwitch from '../../Button/ConnectWithNetworkSwitch'
 import AcceptOfferModal from '../../Modal/AcceptOffer'
 import Balance from '../../User/Balance'
 import Summary from '../Summary'
@@ -41,34 +41,18 @@ type FormData = {
 }
 
 type Props = {
-  signer: Signer | undefined
-  account: string | null | undefined
-  offer: Pick<Offer, 'id' | 'unitPrice' | 'availableQuantity'>
-  chainId: number
-  blockExplorer: BlockExplorer
-  currency: {
-    id: string
-    decimals: number
-    symbol: string
-  }
+  offer: NonNullable<CheckoutQuery['offer']>
   onPurchased: () => void
   multiple?: boolean
 }
 
-const OfferFormCheckout: FC<Props> = ({
-  signer,
-  account,
-  currency,
-  onPurchased,
-  multiple,
-  offer,
-  chainId,
-  blockExplorer,
-}) => {
+const OfferFormCheckout: FC<Props> = ({ onPurchased, multiple, offer }) => {
   const { t } = useTranslation('components')
+  const signer = useSigner()
+  const { address: account } = useAccount()
+  const blockExplorer = useBlockExplorer(offer.asset.chainId)
   const [acceptOffer, { activeStep, transactionHash }] = useAcceptOffer(signer)
   const toast = useToast()
-  const { openConnectModal } = useConnectModal()
   const {
     isOpen: acceptOfferIsOpen,
     onOpen: acceptOfferOnOpen,
@@ -80,20 +64,11 @@ const OfferFormCheckout: FC<Props> = ({
     formState: { errors, isSubmitting },
     setValue,
     watch,
-  } = useForm<FormData>({
-    defaultValues: {
-      quantity: offer.availableQuantity,
-    },
-  })
-
-  useEffect(
-    () => setValue('quantity', offer.availableQuantity),
-    [offer.availableQuantity, setValue],
-  )
+  } = useForm<FormData>({ defaultValues: { quantity: '1' } })
 
   const quantity = watch('quantity')
 
-  const [balance] = useBalance(account, currency.id)
+  const [balance] = useBalance(account, offer.currency.id)
 
   const priceUnit = useParseBigNumber(offer.unitPrice)
   const quantityBN = useParseBigNumber(quantity)
@@ -107,7 +82,7 @@ const OfferFormCheckout: FC<Props> = ({
     if (!offer) throw new Error('offer falsy')
     try {
       acceptOfferOnOpen()
-      await acceptOffer(offer, quantity)
+      await acceptOffer(offer.id, quantity)
       onPurchased()
     } catch (e) {
       toast({
@@ -120,14 +95,14 @@ const OfferFormCheckout: FC<Props> = ({
   })
 
   return (
-    <form onSubmit={onSubmit}>
+    <Stack as="form" onSubmit={onSubmit} w="full" spacing={8}>
       {multiple && (
         <FormControl isInvalid={!!errors.quantity}>
           <HStack spacing={1} mb={2}>
             <FormLabel htmlFor="quantity" m={0}>
               {t('offer.form.checkout.quantity.label')}
             </FormLabel>
-            <FormHelperText>
+            <FormHelperText m={0}>
               {t('offer.form.checkout.quantity.suffix')}
             </FormHelperText>
           </HStack>
@@ -179,19 +154,18 @@ const OfferFormCheckout: FC<Props> = ({
           </FormHelperText>
         </FormControl>
       )}
+
       <Summary
-        currency={currency}
+        currency={offer.currency}
         price={priceUnit}
         quantity={quantityBN}
         isSingle={!multiple}
+        noFees
       />
 
-      {/* There seems to be a rendering issue when signed in, account fetched and
-      page is refreshed that will cause the <Alert /> component below to render weirdly.
-      Wrapping the conditional with a div solves the issue */}
-      <div>{account && <Balance account={account} currency={currency} />}</div>
+      {account && <Balance account={account} currency={offer.currency} />}
 
-      <Alert status="info" borderRadius="xl" mb={8}>
+      <Alert status="info" borderRadius="xl">
         <AlertIcon />
         <Box fontSize="sm">
           <AlertTitle>{t('offer.form.checkout.ownership.title')}</AlertTitle>
@@ -200,25 +174,18 @@ const OfferFormCheckout: FC<Props> = ({
           </AlertDescription>
         </Box>
       </Alert>
-      {account ? (
-        <ButtonWithNetworkSwitch
-          chainId={chainId}
-          isDisabled={!!account && !canPurchase}
-          isLoading={isSubmitting}
-          size="lg"
-          type="submit"
-        >
-          <Text as="span" isTruncated>
-            {t('offer.form.checkout.submit')}
-          </Text>
-        </ButtonWithNetworkSwitch>
-      ) : (
-        <Button size="lg" type="button" onClick={openConnectModal}>
-          <Text as="span" isTruncated>
-            {t('offer.form.checkout.submit')}
-          </Text>
-        </Button>
-      )}
+
+      <ConnectButtonWithNetworkSwitch
+        chainId={offer.asset.chainId}
+        isDisabled={!canPurchase}
+        isLoading={isSubmitting}
+        size="lg"
+        type="submit"
+      >
+        <Text as="span" isTruncated>
+          {t('offer.form.checkout.submit')}
+        </Text>
+      </ConnectButtonWithNetworkSwitch>
 
       <AcceptOfferModal
         isOpen={acceptOfferIsOpen}
@@ -228,7 +195,7 @@ const OfferFormCheckout: FC<Props> = ({
         blockExplorer={blockExplorer}
         transactionHash={transactionHash}
       />
-    </form>
+    </Stack>
   )
 }
 

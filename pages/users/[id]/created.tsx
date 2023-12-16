@@ -1,29 +1,16 @@
-import { Text } from '@chakra-ui/react'
 import { NextPage } from 'next'
-import Trans from 'next-translate/Trans'
 import useTranslation from 'next-translate/useTranslation'
 import { useRouter } from 'next/router'
 import { useCallback, useMemo } from 'react'
 import UserProfileTemplate from '../../../components/Profile'
 import TokenGrid from '../../../components/Token/Grid'
-import {
-  convertAsset,
-  convertAuctionWithBestBid,
-  convertSale,
-  convertUser,
-} from '../../../convert'
-import environment from '../../../environment'
-import {
-  AssetDetailFragment,
-  AssetsOrderBy,
-  useFetchCreatedAssetsQuery,
-} from '../../../graphql'
+import { AssetsOrderBy, useFetchCreatedAssetsQuery } from '../../../graphql'
 import useAccount from '../../../hooks/useAccount'
+import useEnvironment from '../../../hooks/useEnvironment'
 import useOrderByQuery from '../../../hooks/useOrderByQuery'
 import usePaginate from '../../../hooks/usePaginate'
 import usePaginateQuery from '../../../hooks/usePaginateQuery'
 import useRequiredQueryParamSingle from '../../../hooks/useRequiredQueryParamSingle'
-import useSigner from '../../../hooks/useSigner'
 import LargeLayout from '../../../layouts/large'
 
 type Props = {
@@ -31,17 +18,17 @@ type Props = {
 }
 
 const CreatedPage: NextPage<Props> = ({ now }) => {
-  const signer = useSigner()
+  const { PAGINATION_LIMIT, BASE_URL } = useEnvironment()
   const { t } = useTranslation('templates')
   const { pathname, replace, query } = useRouter()
   const { limit, offset, page } = usePaginateQuery()
   const orderBy = useOrderByQuery<AssetsOrderBy>('CREATED_AT_DESC')
-  const [changePage, changeLimit] = usePaginate()
+  const { changeLimit } = usePaginate()
   const { address } = useAccount()
   const userAddress = useRequiredQueryParamSingle('id')
 
   const date = useMemo(() => new Date(now), [now])
-  const { data, loading, previousData } = useFetchCreatedAssetsQuery({
+  const { data } = useFetchCreatedAssetsQuery({
     variables: {
       address: userAddress,
       currentAddress: address || '',
@@ -52,6 +39,8 @@ const CreatedPage: NextPage<Props> = ({ now }) => {
     },
   })
 
+  const assets = useMemo(() => data?.created?.nodes.filter((x) => !!x), [data])
+
   const changeOrder = useCallback(
     async (orderBy: any) => {
       await replace({ pathname, query: { ...query, orderBy } })
@@ -59,38 +48,15 @@ const CreatedPage: NextPage<Props> = ({ now }) => {
     [replace, pathname, query],
   )
 
-  const assetData = useMemo(() => data || previousData, [data, previousData])
-
-  const assets = useMemo(
-    () =>
-      (assetData?.created?.nodes || [])
-        .filter((x): x is AssetDetailFragment => !!x)
-        .map((x) => ({
-          ...convertAsset(x),
-          auction: x.auctions?.nodes[0]
-            ? convertAuctionWithBestBid(x.auctions.nodes[0])
-            : undefined,
-          creator: convertUser(x.creator, x.creator.address),
-          sale: convertSale(x.firstSale?.nodes[0]),
-          numberOfSales: x.firstSale.totalCount,
-          hasMultiCurrency: x.firstSale.totalCurrencyDistinctCount > 1,
-        })),
-    [assetData],
-  )
-
   return (
     <LargeLayout>
       <UserProfileTemplate
-        now={date}
-        signer={signer}
-        currentAccount={address}
         address={userAddress}
         currentTab="created"
-        loginUrlForReferral={environment.BASE_URL + '/login'}
+        loginUrlForReferral={BASE_URL + '/login'}
       >
         <TokenGrid<AssetsOrderBy>
           assets={assets}
-          loading={loading && !assetData}
           orderBy={{
             value: orderBy,
             choices: [
@@ -107,26 +73,11 @@ const CreatedPage: NextPage<Props> = ({ now }) => {
           }}
           pagination={{
             limit,
-            limits: [environment.PAGINATION_LIMIT, 24, 36, 48],
+            limits: [PAGINATION_LIMIT, 24, 36, 48],
             page,
-            total: assetData?.created?.totalCount || 0,
-            onPageChange: changePage,
             onLimitChange: changeLimit,
-            result: {
-              label: t('pagination.result.label'),
-              caption: (props) => (
-                <Trans
-                  ns="templates"
-                  i18nKey="pagination.result.caption"
-                  values={props}
-                  components={[
-                    <Text as="span" color="brand.black" key="text" />,
-                  ]}
-                />
-              ),
-              pages: (props) =>
-                t('pagination.result.pages', { count: props.total }),
-            },
+            hasNextPage: data?.created?.pageInfo.hasNextPage,
+            hasPreviousPage: data?.created?.pageInfo.hasPreviousPage,
           }}
         />
       </UserProfileTemplate>

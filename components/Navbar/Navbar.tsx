@@ -4,7 +4,6 @@ import {
   AccordionIcon,
   AccordionItem,
   AccordionPanel,
-  As,
   Box,
   Button,
   Divider,
@@ -18,9 +17,6 @@ import {
   HStack,
   Icon,
   IconButton,
-  Input,
-  InputGroup,
-  InputLeftElement,
   Menu,
   MenuButton,
   MenuItem,
@@ -33,17 +29,17 @@ import { FaBell } from '@react-icons/all-files/fa/FaBell'
 import { FaEnvelope } from '@react-icons/all-files/fa/FaEnvelope'
 import { HiChevronDown } from '@react-icons/all-files/hi/HiChevronDown'
 import { HiOutlineMenu } from '@react-icons/all-files/hi/HiOutlineMenu'
-import { HiOutlineSearch } from '@react-icons/all-files/hi/HiOutlineSearch'
 import useTranslation from 'next-translate/useTranslation'
 import { useRouter } from 'next/router'
-import { FC, HTMLAttributes, useEffect, useRef, VFC } from 'react'
+import { FC, HTMLAttributes, useEffect, useRef } from 'react'
 import { useCookies } from 'react-cookie'
-import { useForm } from 'react-hook-form'
+import { FormProvider, useForm } from 'react-hook-form'
 import { useDisconnect } from 'wagmi'
 import { useNavbarAccountQuery } from '../../graphql'
 import useAccount from '../../hooks/useAccount'
-import Image from '../Image/Image'
+import useEnvironment from '../../hooks/useEnvironment'
 import Link from '../Link/Link'
+import SearchInput from '../SearchInput'
 import Select from '../Select/Select'
 import AccountImage from '../Wallet/Image'
 
@@ -57,14 +53,10 @@ type MultiLang = {
 }
 
 // Mobile navigation item
-const NavItemMobile: FC<HTMLAttributes<any> & { as?: As<any> | undefined }> = ({
-  children,
-  as = 'span',
-  ...props
-}) => {
+const NavItemMobile: FC<HTMLAttributes<any>> = ({ children, ...props }) => {
   return (
     <Box
-      as={as}
+      as="span"
       display="block"
       py={2}
       pr={4}
@@ -87,16 +79,12 @@ const NavItemMobile: FC<HTMLAttributes<any> & { as?: As<any> | undefined }> = ({
 }
 
 // Mobile navigation
-const DrawerMenu: VFC<{
+const DrawerMenu: FC<{
   account: string | null | undefined
-  logo?: {
-    path: string
-    width?: number
-    height?: number
-  }
   multiLang?: MultiLang
   signOutFn: () => void
-}> = ({ account, signOutFn, logo, multiLang }) => {
+}> = ({ account, signOutFn, multiLang }) => {
+  const { LOGO, META_COMPANY_NAME } = useEnvironment()
   const { isOpen, onOpen, onClose } = useDisclosure()
   const { asPath, events, query, push } = useRouter()
   const { t } = useTranslation('components')
@@ -130,11 +118,10 @@ const DrawerMenu: VFC<{
           <DrawerCloseButton />
           <DrawerHeader>
             <Link href="/" onClick={onClose}>
-              <Image
-                src={logo?.path || '/logo.svg'}
-                alt="Logo"
-                width={logo?.width || 139}
-                height={logo?.height || 32}
+              <img
+                src={LOGO}
+                alt={META_COMPANY_NAME}
+                style={{ height: '32px' }}
               />
             </Link>
           </DrawerHeader>
@@ -142,6 +129,9 @@ const DrawerMenu: VFC<{
             <Link href="/explore">
               <NavItemMobile>{t('navbar.explore')}</NavItemMobile>
             </Link>
+            {/* <Link href="/drops">
+              <NavItemMobile>{t('navbar.drops')}</NavItemMobile>
+            </Link> */}
             <Link href="/create">
               <NavItemMobile>{t('navbar.create')}</NavItemMobile>
             </Link>
@@ -264,7 +254,7 @@ const DrawerMenu: VFC<{
 }
 
 // Activity menu for desktop. Only visible when signed in
-const ActivityMenu: VFC<{ account: string }> = ({ account }) => {
+const ActivityMenu: FC<{ account: string }> = ({ account }) => {
   const { t } = useTranslation('components')
   return (
     <Menu>
@@ -292,14 +282,13 @@ const ActivityMenu: VFC<{ account: string }> = ({ account }) => {
 }
 
 // Account menu for desktop. Only visible when signed in
-const UserMenu: VFC<{
-  account: string
+const UserMenu: FC<{
   user: {
     address: string
     image: string | null
   }
   signOutFn: () => void
-}> = ({ account, user, signOutFn }) => {
+}> = ({ user, signOutFn }) => {
   const { t } = useTranslation('components')
   return (
     <Menu>
@@ -307,7 +296,7 @@ const UserMenu: VFC<{
         <Flex>
           <Flex
             as={AccountImage}
-            address={user.address || account}
+            address={user.address}
             image={user.image}
             size={40}
             rounded="full"
@@ -315,7 +304,7 @@ const UserMenu: VFC<{
         </Flex>
       </MenuButton>
       <MenuList>
-        <Link href={`/users/${account}`}>
+        <Link href={`/users/${user.address}`}>
           <MenuItem>{t('navbar.user.profile')}</MenuItem>
         </Link>
         <Link href="/account/wallet">
@@ -334,32 +323,28 @@ type FormData = {
   search: string
 }
 
-const Navbar: VFC<{
-  logo?: {
-    path: string
-    width?: number
-    height?: number
-  }
+const Navbar: FC<{
   multiLang?: MultiLang
-}> = ({ logo, multiLang }) => {
+}> = ({ multiLang }) => {
   const { t } = useTranslation('components')
+  const { LOGO, META_COMPANY_NAME } = useEnvironment()
   const { address, isLoggedIn, logout, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const { asPath, query, push, isReady, events } = useRouter()
-  const { register, setValue, handleSubmit } = useForm<FormData>()
+  const formValues = useForm<FormData>()
   const [cookies] = useCookies()
   const { openConnectModal } = useConnectModal()
   const lastNotification = cookies[`lastNotification-${address}`]
   const {
     data: accountData,
     refetch,
-    previousData: previousAccountData,
+    previousData: previousAccountData, // previous data logic needed to avoid flickering navbar when lastNotification value changes
   } = useNavbarAccountQuery({
     variables: {
       account: address?.toLowerCase() || '',
       lastNotification: new Date(lastNotification || 0),
     },
-    skip: !isLoggedIn,
+    skip: !isLoggedIn && !address,
   })
   const account = isLoggedIn
     ? accountData?.account || previousAccountData?.account
@@ -367,19 +352,23 @@ const Navbar: VFC<{
 
   useEffect(() => {
     if (!isReady) return
-    if (!query.search) return setValue('search', '')
-    if (Array.isArray(query.search)) return setValue('search', '')
-    setValue('search', query.search)
-  }, [isReady, setValue, query.search])
+    if (!query.search) return formValues.setValue('search', '')
+    if (Array.isArray(query.search)) return formValues.setValue('search', '')
+    formValues.setValue('search', query.search)
+  }, [isReady, formValues, query.search])
 
   useEffect(() => {
-    events.on('routeChangeStart', refetch)
-    return () => {
-      events.off('routeChangeStart', refetch)
+    const callback = () => {
+      if (!isLoggedIn && !address) return
+      void refetch()
     }
-  }, [events, refetch])
+    events.on('routeChangeStart', callback)
+    return () => {
+      events.off('routeChangeStart', callback)
+    }
+  }, [events, refetch, address, isLoggedIn])
 
-  const onSubmit = handleSubmit((data) => {
+  const onSubmit = formValues.handleSubmit((data) => {
     if (data.search) query.search = data.search
     else delete query.search
     delete query.skip // reset pagination
@@ -393,22 +382,22 @@ const Navbar: VFC<{
       <Flex mx="auto" h={16} gap={6} px={{ base: 6, lg: 8 }} maxW="7xl">
         <Flex align="center">
           <Flex as={Link} href="/">
-            <Image
-              src={logo?.path || '/logo.svg'}
-              alt="Logo"
-              width={logo?.width || 139}
-              height={logo?.height || 32}
+            <img
+              src={LOGO}
+              alt={META_COMPANY_NAME}
+              style={{ height: '32px' }}
             />
           </Flex>
         </Flex>
-        <Flex as="form" my="auto" grow={1} onSubmit={onSubmit}>
-          <InputGroup>
-            <InputLeftElement pointerEvents="none">
-              <Icon as={HiOutlineSearch} w={6} h={6} color="gray.400" />
-            </InputLeftElement>
-            <Input placeholder={t('navbar.search')} {...register('search')} />
-          </InputGroup>
-        </Flex>
+        <FormProvider {...formValues}>
+          <Flex as="form" my="auto" grow={1} onSubmit={onSubmit}>
+            <SearchInput
+              placeholder={t('navbar.search')}
+              name="search"
+              onSubmit={onSubmit}
+            />
+          </Flex>
+        </FormProvider>
         <Flex display={{ base: 'none', lg: 'flex' }} align="center" gap={6}>
           <Flex
             as={Link}
@@ -421,6 +410,17 @@ const Navbar: VFC<{
               {t('navbar.explore')}
             </Text>
           </Flex>
+          {/* <Flex
+            as={Link}
+            href="/drops"
+            color="brand.black"
+            align="center"
+            _hover={{ color: 'gray.500' }}
+          >
+            <Text as="span" variant="button2">
+              {t('navbar.drops')}
+            </Text>
+          </Flex> */}
           <Flex
             as={Link}
             href="/create"
@@ -473,7 +473,6 @@ const Navbar: VFC<{
                 </IconButton>
               </Link>
               <UserMenu
-                account={account.address}
                 user={account}
                 signOutFn={() => logout().then(disconnect)}
               />
@@ -507,7 +506,6 @@ const Navbar: VFC<{
         <Flex display={{ base: 'flex', lg: 'none' }} align="center">
           <DrawerMenu
             account={account?.address}
-            logo={logo}
             multiLang={multiLang}
             signOutFn={() => logout().then(disconnect)}
           />

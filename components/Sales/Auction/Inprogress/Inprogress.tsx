@@ -1,8 +1,7 @@
 import { Flex, Heading, Icon } from '@chakra-ui/react'
-import { BigNumber } from '@ethersproject/bignumber'
 import { HiOutlineClock } from '@react-icons/all-files/hi/HiOutlineClock'
 import useTranslation from 'next-translate/useTranslation'
-import { useMemo, VFC } from 'react'
+import { FC, useMemo } from 'react'
 import Countdown from '../../../Countdown/Countdown'
 import Image from '../../../Image/Image'
 import Price from '../../../Price/Price'
@@ -15,9 +14,9 @@ type Props = {
       symbol: string
     }
   }
-  bestBid:
+  bestAuctionBid:
     | {
-        unitPrice: BigNumber
+        unitPrice: string
         currency: {
           decimals: number
           symbol: string
@@ -27,29 +26,32 @@ type Props = {
     | undefined
 }
 
-const SaleAuctionInProgress: VFC<Props> = ({ auction, bestBid }) => {
+const SaleAuctionInProgress: FC<Props> = ({ auction, bestAuctionBid }) => {
   const { t } = useTranslation('components')
   const bidTitle = useMemo(
     () =>
-      bestBid
+      bestAuctionBid
         ? t('sales.auction.in-progress.highest-bid')
         : t('sales.auction.in-progress.open'),
-    [bestBid, t],
+    [bestAuctionBid, t],
   )
 
   const currency = useMemo(
-    () => (bestBid ? bestBid.currency : auction.currency),
-    [bestBid, auction],
+    () => (bestAuctionBid ? bestAuctionBid.currency : auction.currency),
+    [bestAuctionBid, auction],
   )
 
   const bidChildren = useMemo(
     () =>
-      bestBid ? (
-        <Price amount={bestBid.unitPrice} currency={bestBid.currency} />
+      bestAuctionBid ? (
+        <Price
+          amount={bestAuctionBid.unitPrice}
+          currency={bestAuctionBid.currency}
+        />
       ) : (
         t('sales.auction.in-progress.offer')
       ),
-    [bestBid, t],
+    [bestAuctionBid, t],
   )
 
   return (
@@ -60,6 +62,7 @@ const SaleAuctionInProgress: VFC<Props> = ({ auction, bestBid }) => {
         </Heading>
         <Flex gap={2}>
           <Flex
+            position="relative"
             as="span"
             h={8}
             w={8}
@@ -73,8 +76,8 @@ const SaleAuctionInProgress: VFC<Props> = ({ auction, bestBid }) => {
               <Image
                 src={currency.image}
                 alt={currency.symbol}
-                width={32}
-                height={32}
+                fill
+                sizes="30px"
                 objectFit="cover"
               />
             )}

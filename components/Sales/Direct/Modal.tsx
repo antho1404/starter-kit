@@ -11,36 +11,24 @@ import {
   Text,
   useDisclosure,
 } from '@chakra-ui/react'
-import { Signer } from '@ethersproject/abstract-signer'
 import useTranslation from 'next-translate/useTranslation'
-import { VFC } from 'react'
-import { BlockExplorer } from '../../../hooks/useBlockExplorer'
+import { FC } from 'react'
 import List from '../../List/List'
 import type { Props as ItemProps } from './ModalItem'
 import SaleDirectModalItem from './ModalItem'
 
 export type Props = {
-  blockExplorer: BlockExplorer
-  signer: Signer | undefined
-  currentAccount: string | null | undefined
-  sales: (ItemProps['sale'] & { currency: { id: string } })[]
   chainId: number
+  sales: (ItemProps['sale'] & { currency: { id: string } })[]
   onOfferCanceled: (id: string) => Promise<void>
 }
 
-const SaleDirectModal: VFC<Props> = ({
-  blockExplorer,
-  signer,
-  currentAccount,
-  sales,
-  chainId,
-  onOfferCanceled,
-}) => {
+const SaleDirectModal: FC<Props> = ({ sales, chainId, onOfferCanceled }) => {
   const { t } = useTranslation('components')
   const { isOpen, onOpen, onClose } = useDisclosure()
   return (
     <>
-      <Button size="lg" onClick={onOpen} isFullWidth>
+      <Button size="lg" onClick={onOpen} width="full">
         <Text as="span" isTruncated>
           {t('sales.direct.modal.button')}
         </Text>
@@ -71,9 +59,6 @@ const SaleDirectModal: VFC<Props> = ({
                     key={sale.id}
                     chainId={chainId}
                     sale={sale}
-                    blockExplorer={blockExplorer}
-                    signer={signer}
-                    currentAccount={currentAccount}
                     onOfferCanceled={onOfferCanceled}
                   />
                 </>

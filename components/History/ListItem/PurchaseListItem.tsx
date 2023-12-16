@@ -4,7 +4,8 @@ import { FaShoppingCart } from '@react-icons/all-files/fa/FaShoppingCart'
 import { HiBadgeCheck } from '@react-icons/all-files/hi/HiBadgeCheck'
 import { HiOutlineExternalLink } from '@react-icons/all-files/hi/HiOutlineExternalLink'
 import Trans from 'next-translate/Trans'
-import { VFC } from 'react'
+import { FC } from 'react'
+import { AccountVerificationStatus } from '../../../graphql'
 import { BlockExplorer } from '../../../hooks/useBlockExplorer'
 import { formatDate } from '../../../utils'
 import Link from '../../Link/Link'
@@ -14,19 +15,23 @@ import WalletAddress from '../../Wallet/Address'
 
 type IProps = {
   date: Date
-  unitPrice: BigNumber
-  quantity: BigNumber
+  unitPrice: string
+  quantity: string
   fromAddress: string
   from: {
     name: string | null
     image: string | null
-    verified: boolean
+    verification: {
+      status: AccountVerificationStatus
+    } | null
   } | null
   toAddress: string
   to: {
     name: string | null
     image: string | null
-    verified: boolean
+    verification: {
+      status: AccountVerificationStatus
+    } | null
   } | null
   currency: {
     decimals: number
@@ -36,7 +41,7 @@ type IProps = {
   blockExplorer: BlockExplorer
 }
 
-const PurchaseListItem: VFC<IProps> = ({
+const PurchaseListItem: FC<IProps> = ({
   currency,
   fromAddress,
   from,
@@ -50,12 +55,17 @@ const PurchaseListItem: VFC<IProps> = ({
 }) => {
   return (
     <ListItem
+      px={0}
       image={<Icon as={FaShoppingCart} h={5} w={5} color="gray.400" />}
       label={
         <Trans
           ns="components"
           i18nKey="history.purchase.purchased"
-          values={{ count: quantity.toNumber() }}
+          values={{
+            count: BigNumber.from(quantity).lte(Number.MAX_SAFE_INTEGER - 1)
+              ? BigNumber.from(quantity).toNumber()
+              : Number.MAX_SAFE_INTEGER - 1,
+          }}
           components={[
             <Text
               as="span"
@@ -98,7 +108,7 @@ const PurchaseListItem: VFC<IProps> = ({
               >
                 {from?.name || <WalletAddress address={fromAddress} isShort />}
               </Text>
-              {from?.verified && (
+              {from?.verification?.status === 'VALIDATED' && (
                 <Icon as={HiBadgeCheck} color="brand.500" h={4} w={4} />
               )}
             </Flex>,
@@ -118,7 +128,7 @@ const PurchaseListItem: VFC<IProps> = ({
               >
                 {to?.name || <WalletAddress address={toAddress} isShort />}
               </Text>
-              {to?.verified && (
+              {to?.verification?.status === 'VALIDATED' && (
                 <Icon as={HiBadgeCheck} color="brand.500" h={4} w={4} />
               )}
             </Flex>,

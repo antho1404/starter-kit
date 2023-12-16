@@ -6,6 +6,13 @@
       "edit-profile": "Editar perfil"
     }
   },
+  "network": {
+    "button": {
+      "sign-in": "Iniciar sesión",
+      "signing-in": "Iniciando sesión...",
+      "switch-network": "Cambiar red"
+    }
+  },
   "bid": {
     "list": {
       "none": "Sin ofertas"
@@ -57,9 +64,65 @@
   },
   "countdown": {
     "day": "{{value}}d",
+    "day-long": "días",
     "hour": "{{value}}h",
+    "hour-long": "hrs",
     "min": "{{value}}m",
-    "sec": "{{value}}s"
+    "min-long": "mnts",
+    "sec": "{{value}}s",
+    "sec-long": "sgs"
+  },
+  "drop": {
+    "timeline": {
+      "upcoming": "Upcoming",
+      "in-progress": "In progress",
+      "ended": "Ended"
+    },
+    "by": "By {{address}}",
+    "supply": {
+      "available_one": "<0/> item",
+      "available_other": "<0/> items",
+      "infinite": "Open edition"
+    },
+    "progress": {
+      "percentage": "{{percentage}}% minted",
+      "minted": "Minted"
+    },
+    "listItem": {
+      "price": "Price: <0/>",
+      "startDate": "Starts: {{startDate}}",
+      "endDate": "Ends: {{endDate}}",
+      "supply": "Supply: {{supply}}",
+      "maxQuantityPerWallet": "Mint limit: {{maxQuantityPerWallet}} per wallet",
+      "eligible": "Eligible",
+      "notEligible": "Not eligible"
+    },
+    "form": {
+      "ended": {
+        "title": "Mint ended",
+        "minted": "Minted:",
+        "totalMinted": "{{totalMinted}} items",
+        "viewCollection": "View collection"
+      },
+      "in-progress": {
+        "price": "Price:",
+        "supply": "Supply:",
+        "mintLimit": "Mint limit:",
+        "limit": "{{maxQuantityPerWallet}} per wallet",
+        "mintedOut": "Minted out",
+        "mint": "Mint",
+        "notEligible": "You're not eligible for this mint stage",
+        "endsIn": "Ends in <0/>"
+      },
+      "upcoming": {
+        "price": "Price:",
+        "supply": "Supply:",
+        "mintLimit": "Mint limit:",
+        "limit": "{{maxQuantityPerWallet}} per wallet",
+        "disabled": "Minting soon",
+        "startsIn": "Starts in <0/>"
+      }
+    }
   },
   "dropzone": {
     "required": "Este campo es obligatorio.",
@@ -72,8 +135,20 @@
       "clear": "Borrar filtros"
     },
     "collections": {
+      "more": "Carga más",
       "chains": {
         "label": "Cadena"
+      },
+      "empty": {
+        "title": "No se encontraron colecciones",
+        "description": "Actualiza tus filtros para encontrar más colecciones."
+      }
+    },
+    "traits": {
+      "more": "Carga más",
+      "empty": {
+        "title": "No se encontraron rasgos",
+        "description": "Actualiza tus filtros para encontrar más rasgos."
       }
     },
     "assets": {
@@ -119,7 +194,7 @@
       },
       "properties": {
         "label": "Propiedades",
-        "labelWithCollection": "Colección y propiedades",
+        "labelWithCollection": "Colección",
         "search": {
           "placeholder": "Propiedades del filtro"
         }
@@ -131,6 +206,15 @@
   },
   "history": {
     "none": "Sin historial",
+    "filter": {
+      "all": "Todo",
+      "lazymint": "Lazy Mint",
+      "listing": "Listado",
+      "purchase": "Compra",
+      "transfer": "Transferencia",
+      "mint": "Mint",
+      "burn": "Quemar"
+    },
     "listing": {
       "by": "Por <0/>",
       "listed_one": "<0>{{count}}</0> edición listada por <1/>",
@@ -155,6 +239,11 @@
       "from": "De <0/> para <1/>",
       "purchased_one": "<0>{{count}}</0> edición compradas por <1/>",
       "purchased_other": "<0>{{count}}</0> ediciones compradas por <1/> cada una"
+    },
+    "burn": {
+      "quantity_one": "{{count}} edición quemada",
+      "purchased_other": "{{count}} ediciones quemadas",
+      "by": "Por {{user}}"
     }
   },
   "modal": {
@@ -330,6 +419,25 @@
         }
       }
     },
+    "drop": {
+      "title": "Mint",
+      "description": "Confirm transaction in your wallet to continue, this action will cost you gas fees.",
+      "action": "View on {{name}}",
+      "transaction": {
+        "signature": {
+          "title": "Your confirmation is required",
+          "description": "Open and confirm transaction in your wallet"
+        },
+        "pending": {
+          "title": "Confirmation is pending",
+          "description": "0/2 completed - Transaction is pending on Blockchain"
+        },
+        "ownership": {
+          "title": "Confirmation is pending",
+          "description": "1/2 completed - Ownership is being checked"
+        }
+      }
+    },
     "login": {
       "title": "Inicia sesión con tu Wallet",
       "description": "Conéctate con alguna de las siguientes opciones:",
@@ -341,8 +449,9 @@
     "open-menu": "Abrir menú principal",
     "open-activity": "Abrir menú de actividad",
     "explore": "Explorar",
+    "drops": "Gotas",
     "create": "Crear",
-    "search": "Buscar",
+    "search": "Busque NFT, colecciones o cuentas",
     "sign-in": "Iniciar sesión",
     "chat": "Mensajes",
     "signing-in": "Iniciando sesión...",
@@ -484,6 +593,9 @@
       }
     }
   },
+  "pagination": {
+    "label": "Resultados por página"
+  },
   "referral": {
     "form": {
       "connect": "Inicia sesión para generar tu link de referencia",
@@ -545,37 +657,6 @@
         "no-bids": "Aún no hay ofertas",
         "view": "Ver mi NFT",
         "ongoing-auction": "Subasta en curso"
-      },
-      "form": {
-        "submit": "Crear Oferta",
-        "validation": {
-          "required": "Este campo es obligatorio.",
-          "decimals": "Este campo admite un máximo de {{ nbDecimals }} decimales.",
-          "positive": "Este campo debe ser mayor a 0."
-        },
-        "currency": {
-          "label": "Moneda",
-          "hint": "Selecciona la moneda en la cual los compradores pueden hacer ofertas",
-          "placeholder": "Selecciona una moneda"
-        },
-        "price": {
-          "label": "Precio de reserva",
-          "hint": "Define un precio por debajo del cual ninguna oferta ganará la subasta",
-          "placeholder": "Ingresa precio de reserva",
-          "info": "(Opcional)"
-        },
-        "start": {
-          "label": "Fecha de Inicio",
-          "placeholder": "De inmediato"
-        },
-        "end": {
-          "label": "Fecha de Finalización"
-        },
-        "banner": {
-          "title": "Reglas de las Subastas",
-          "item1": "Cuando una subasta comienza, ya no será posible cancelar la venta. Esto es para dar una experiencia justa a los usuarios de la plataforma.",
-          "item2": "Período de expiración: Para prevenir subastas/ofertas viejas y olvidadas, ambas serán canceladas {{validity}} después de la fecha de finalización seleccionada. Recuerda que puedes volver a crear una venta al finalizar el período."
-        }
       },
       "info": {
         "title": "Confirma la venta",
@@ -751,11 +832,6 @@
         "category": {
           "label": "Categoría",
           "placeholder": "Selecciona una categoría"
-        },
-        "unlockable": {
-          "label": "Contenido desbloqueable",
-          "hint": "(Opcional)",
-          "choice": "El contenido del ítem sólo puede ser desbloqueado por el propietario del ítem."
         }
       }
     },
@@ -792,6 +868,7 @@
     "percent": "{{value}}%"
   },
   "truncate": {
+    "show-less": "Mostrar menos",
     "show-more": "Mostrar más"
   },
   "user": {

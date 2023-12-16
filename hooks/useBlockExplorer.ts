@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { chains } from '../connectors'
+import { Chain } from 'wagmi'
+import useEnvironment from './useEnvironment'
 
 export type BlockExplorer = {
   name: string
@@ -8,12 +9,13 @@ export type BlockExplorer = {
   transaction: (hash: string | undefined) => string | null
 }
 
-export function blockExplorer(chainId: number | undefined): BlockExplorer {
-  const explorer = chainId
-    ? chains.find((chain) => chain.id === chainId)?.blockExplorers?.[
-        'etherscan'
-      ]
-    : null
+export function blockExplorer(
+  chains: Chain[],
+  chainId: number | undefined,
+): BlockExplorer {
+  const chain = chains.find((chain) => chain.id === chainId)
+  const explorer =
+    chain?.blockExplorers?.['etherscan'] || chain?.blockExplorers?.default
 
   return {
     name: explorer?.name || '',
@@ -28,5 +30,6 @@ export function blockExplorer(chainId: number | undefined): BlockExplorer {
 export default function useBlockExplorer(
   chainId: number | undefined,
 ): BlockExplorer {
-  return useMemo(() => blockExplorer(chainId), [chainId])
+  const { CHAINS } = useEnvironment()
+  return useMemo(() => blockExplorer(CHAINS, chainId), [CHAINS, chainId])
 }

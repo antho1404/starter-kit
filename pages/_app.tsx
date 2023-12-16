@@ -1,13 +1,14 @@
 import { ApolloProvider } from '@apollo/client'
 import Bugsnag from '@bugsnag/js'
 import BugsnagPluginReact from '@bugsnag/plugin-react'
-import { Box, ChakraProvider, useToast } from '@chakra-ui/react'
-import { LiteflowProvider } from '@nft/hooks'
-import { lightTheme, RainbowKitProvider } from '@rainbow-me/rainbowkit'
+import { Box, ChakraProvider } from '@chakra-ui/react'
+import { LiteflowProvider } from '@liteflow/react'
+import { RainbowKitProvider, lightTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
 import dayjs from 'dayjs'
 import type { AppContext, AppInitialProps, AppProps } from 'next/app'
 import App from 'next/app'
+import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { GoogleAnalytics, usePageViews } from 'nextjs-google-analytics'
 import NProgress from 'nprogress'
@@ -15,31 +16,35 @@ import 'nprogress/nprogress.css'
 import React, {
   ComponentType,
   Fragment,
+  JSX,
   PropsWithChildren,
   useEffect,
   useMemo,
+  useState,
 } from 'react'
 import { Cookies, CookiesProvider } from 'react-cookie'
 import {
-  useAccount as useWagmiAccount,
-  useDisconnect,
   WagmiConfig,
+  useDisconnect,
+  useAccount as useWagmiAccount,
 } from 'wagmi'
 import getClient from '../client'
 import Footer from '../components/Footer/Footer'
-import Head from '../components/Head'
 import Navbar from '../components/Navbar/Navbar'
-import { chains, client } from '../connectors'
-import environment from '../environment'
+import connectors from '../connectors'
+import getEnvironment, { Environment, EnvironmentContext } from '../environment'
 import useAccount, { COOKIES, COOKIE_JWT_TOKEN } from '../hooks/useAccount'
-import { theme } from '../styles/theme'
+import useEnvironment from '../hooks/useEnvironment'
+import { getTheme } from '../styles/theme'
+import Error from './_error'
 require('dayjs/locale/ja')
 require('dayjs/locale/zh-cn')
 require('dayjs/locale/es-mx')
 
 NProgress.configure({ showSpinner: false })
 
-function Layout({ children }: PropsWithChildren<{}>) {
+function Layout({ children }: PropsWithChildren) {
+  const { META_COMPANY_NAME } = useEnvironment()
   const router = useRouter()
   const { address } = useAccount()
   const userProfileLink = useMemo(
@@ -109,15 +114,18 @@ function Layout({ children }: PropsWithChildren<{}>) {
         }}
       />
       {children}
-      <Footer name={environment.META_COMPANY_NAME} links={footerLinks} />
+      <Footer name={META_COMPANY_NAME} links={footerLinks} />
     </Box>
   )
 }
 
-function AccountProvider(props: PropsWithChildren<{}>) {
+function AccountProvider({
+  children,
+  onError,
+}: PropsWithChildren<{ onError: (code: number) => void }>) {
+  const { LITEFLOW_API_KEY, BASE_URL } = useEnvironment()
   const { login, jwtToken, logout } = useAccount()
   const { disconnect } = useDisconnect()
-  const toast = useToast()
 
   const { connector } = useWagmiAccount({
     async onConnect({ connector }) {
@@ -125,10 +133,6 @@ function AccountProvider(props: PropsWithChildren<{}>) {
       try {
         await login(connector)
       } catch (e: any) {
-        toast({
-          title: e.reason || e.message || e.toString(),
-          status: 'warning',
-        })
         disconnect()
       }
     },
@@ -150,16 +154,29 @@ function AccountProvider(props: PropsWithChildren<{}>) {
   const client = useMemo(
     // The client needs to be reset when the jwtToken changes but only on the client as the server will
     // always have the same token and will rerender this app multiple times and needs to preserve the cache
-    () => getClient(jwtToken, typeof window !== 'undefined'),
-    [jwtToken],
+    () =>
+      getClient(
+        LITEFLOW_API_KEY,
+        jwtToken,
+        BASE_URL,
+        typeof window !== 'undefined',
+        onError,
+      ),
+    [jwtToken, onError, LITEFLOW_API_KEY, BASE_URL],
   )
 
-  return <ApolloProvider client={client}>{props.children}</ApolloProvider>
+  return <ApolloProvider client={client}>{children}</ApolloProvider>
 }
 
-export type MyAppProps = { jwt: string | null; now: Date }
+export type MyAppProps = {
+  jwt: string | null
+  now: Date
+  environment: Environment
+}
 
 function MyApp({ Component, pageProps }: AppProps<MyAppProps>): JSX.Element {
+  const { environment } = pageProps
+  const [errorCode, setErrorCode] = useState<number>()
   const router = useRouter()
   dayjs.locale(router.locale)
   usePageViews()
@@ -194,49 +211,57 @@ function MyApp({ Component, pageProps }: AppProps<MyAppProps>): JSX.Element {
       ? new Cookies({ [COOKIE_JWT_TOKEN]: pageProps.jwt } as COOKIES)
       : undefined
 
+  const { chains, client } = useMemo(
+    () => connectors(environment),
+    [environment],
+  )
+
+  const theme = useMemo(() => getTheme(environment.BRAND_COLOR), [environment])
+
   return (
     <ErrorBoundary>
-      <Head
-        title={environment.META_TITLE}
-        description={environment.META_DESCRIPTION}
-      >
-        <meta name="keywords" content={environment.META_KEYWORDS} />
+      <EnvironmentContext.Provider value={environment}>
+        <Head>
+          <meta name="keywords" content={environment.META_KEYWORDS} />
 
-        <meta name="author" content={environment.META_COMPANY_NAME} />
-        <meta name="application-name" content={environment.META_TITLE} />
+          <meta name="author" content={environment.META_COMPANY_NAME} />
+          <meta name="application-name" content={environment.META_TITLE} />
 
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={environment.BASE_URL} />
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content={environment.BASE_URL} />
 
-        <meta name="twitter:card" content="summary" />
-      </Head>
-      <GoogleAnalytics strategy="lazyOnload" />
-      <WagmiConfig client={client}>
-        <RainbowKitProvider
-          chains={chains}
-          theme={lightTheme({
-            accentColor: theme.colors.brand[500],
-            borderRadius: 'medium',
-          })}
-        >
-          <CookiesProvider cookies={cookies}>
-            <ChakraProvider theme={theme}>
-              <LiteflowProvider
-                endpoint={`${
-                  process.env.NEXT_PUBLIC_LITEFLOW_BASE_URL ||
-                  'https://api.liteflow.com'
-                }/${environment.LITEFLOW_API_KEY}/graphql`}
-              >
-                <AccountProvider>
-                  <Layout>
-                    <Component {...pageProps} />
-                  </Layout>
-                </AccountProvider>
-              </LiteflowProvider>
-            </ChakraProvider>
-          </CookiesProvider>
-        </RainbowKitProvider>
-      </WagmiConfig>
+          <meta name="twitter:card" content="summary" />
+        </Head>
+        <GoogleAnalytics strategy="lazyOnload" />
+        <WagmiConfig config={client}>
+          <RainbowKitProvider
+            chains={chains}
+            theme={lightTheme({
+              accentColor: theme.colors.brand[500],
+              borderRadius: 'medium',
+            })}
+          >
+            <CookiesProvider cookies={cookies}>
+              <ChakraProvider theme={theme}>
+                <LiteflowProvider
+                  apiKey={environment.LITEFLOW_API_KEY}
+                  endpoint={process.env.NEXT_PUBLIC_LITEFLOW_BASE_URL}
+                >
+                  <AccountProvider onError={setErrorCode}>
+                    <Layout>
+                      {errorCode ? (
+                        <Error statusCode={errorCode} />
+                      ) : (
+                        <Component {...pageProps} />
+                      )}
+                    </Layout>
+                  </AccountProvider>
+                </LiteflowProvider>
+              </ChakraProvider>
+            </CookiesProvider>
+          </RainbowKitProvider>
+        </WagmiConfig>
+      </EnvironmentContext.Provider>
     </ErrorBoundary>
   )
 }
@@ -261,6 +286,7 @@ MyApp.getInitialProps = async (
       ...initialProps.pageProps,
       jwt,
       now,
+      environment: await getEnvironment(),
     },
   }
 }

@@ -1,6 +1,6 @@
 import { Box, Divider, Flex, Text } from '@chakra-ui/react'
 import useTranslation from 'next-translate/useTranslation'
-import { VFC } from 'react'
+import { FC } from 'react'
 import Link from '../Link/Link'
 import LiteflowLogo from './LiteflowLogo'
 
@@ -12,7 +12,7 @@ type Props = {
   }[]
 }
 
-const Footer: VFC<Props> = ({ name, links }) => {
+const Footer: FC<Props> = ({ name, links }) => {
   const { t } = useTranslation('components')
   return (
     <>
@@ -21,38 +21,21 @@ const Footer: VFC<Props> = ({ name, links }) => {
         <Box mx="auto" px={{ base: 6, lg: 8 }} maxW="80rem">
           <Flex justify="center">
             <Flex as="nav" wrap="wrap" justify="center" gap={6} pt={12} pb={8}>
-              {links.map((link, i) =>
-                link.href.match(/^[http|mailto]/) ? (
-                  <Text
-                    as="a"
-                    color="gray.500"
-                    fontWeight="medium"
-                    cursor="pointer"
-                    _hover={{
-                      color: 'brand.black',
-                    }}
-                    href={link.href}
-                    target="_blank"
-                    rel="noopenner noreferrer"
-                    key={i}
-                  >
-                    {link.label}
-                  </Text>
-                ) : (
-                  <Link href={link.href} key={i}>
-                    <Text
-                      color="gray.500"
-                      fontWeight="medium"
-                      cursor="pointer"
-                      _hover={{
-                        color: 'brand.black',
-                      }}
-                    >
-                      {link.label}
-                    </Text>
-                  </Link>
-                ),
-              )}
+              {links.map((link, i) => (
+                <Text
+                  key={i}
+                  as={Link}
+                  href={link.href}
+                  isExternal={!!link.href.match(/^[http|mailto]/)}
+                  color="gray.500"
+                  fontWeight="medium"
+                  _hover={{
+                    color: 'brand.black',
+                  }}
+                >
+                  {link.label}
+                </Text>
+              ))}
             </Flex>
           </Flex>
           <Divider />

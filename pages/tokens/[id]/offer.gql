@@ -22,17 +22,14 @@ query OfferForAsset(
     }
     name
     image
-    animationUrl
+    imageMimetype
     royalties {
       value
-    }
-    unlockedContent {
-      url
-      mimetype
     }
     owned: ownership(ownerAddress: $address) {
       quantity
     }
+    quantity
     auctions(
       first: 1
       orderBy: CREATED_AT_DESC
@@ -106,6 +103,20 @@ query OfferForAsset(
       verification {
         status
       }
+    }
+  }
+  currencies(
+    orderBy: CREATED_AT_ASC
+    filter: { chainId: { equalTo: $chainId } }
+  ) {
+    nodes {
+      id
+      chainId
+      address
+      decimals
+      symbol
+      name
+      image
     }
   }
 }

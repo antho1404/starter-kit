@@ -1,7 +1,6 @@
 import { Flex, Text } from '@chakra-ui/react'
-import { BigNumber } from '@ethersproject/bignumber'
 import useTranslation from 'next-translate/useTranslation'
-import { VFC } from 'react'
+import { FC } from 'react'
 import Link from '../../Link/Link'
 import Price from '../../Price/Price'
 
@@ -9,7 +8,7 @@ type Props = {
   assetId: string
   bestBid:
     | {
-        unitPrice: BigNumber
+        unitPrice: string
         currency: {
           decimals: number
           symbol: string
@@ -20,7 +19,7 @@ type Props = {
   showButton?: boolean
 }
 
-const SaleAuctionCardFooter: VFC<Props> = ({
+const SaleAuctionCardFooter: FC<Props> = ({
   assetId,
   bestBid,
   isOwner,

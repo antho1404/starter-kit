@@ -1,5 +1,6 @@
 import {
   Box,
+  Divider,
   Flex,
   Grid,
   GridItem,
@@ -9,11 +10,9 @@ import {
   ModalContent,
   ModalHeader,
   SimpleGrid,
-  Text,
   useBreakpointValue,
 } from '@chakra-ui/react'
 import { NextPage } from 'next'
-import Trans from 'next-translate/Trans'
 import useTranslation from 'next-translate/useTranslation'
 import { useRouter } from 'next/router'
 import { useCallback, useMemo } from 'react'
@@ -27,20 +26,14 @@ import Select from '../../components/Select/Select'
 import SkeletonGrid from '../../components/Skeleton/Grid'
 import SkeletonTokenCard from '../../components/Skeleton/TokenCard'
 import TokenCard from '../../components/Token/Card'
-import {
-  convertAsset,
-  convertAuctionWithBestBid,
-  convertSale,
-  convertUser,
-} from '../../convert'
-import environment from '../../environment'
 import { AssetsOrderBy, useFetchAllErc721And1155Query } from '../../graphql'
 import useAccount from '../../hooks/useAccount'
 import useAssetFilterFromQuery, {
-  convertFilterToAssetFilter,
   Filter,
+  convertFilterToAssetFilter,
 } from '../../hooks/useAssetFilterFromQuery'
 import useAssetFilterState from '../../hooks/useAssetFilterState'
+import useEnvironment from '../../hooks/useEnvironment'
 import useOrderByQuery from '../../hooks/useOrderByQuery'
 import usePaginate from '../../hooks/usePaginate'
 import usePaginateQuery from '../../hooks/usePaginateQuery'
@@ -51,15 +44,19 @@ type Props = {
 }
 
 const ExplorePage: NextPage<Props> = ({ now }) => {
+  const { PAGINATION_LIMIT } = useEnvironment()
   const { query, pathname, push } = useRouter()
-  const isSmall = useBreakpointValue({ base: true, md: false })
+  const isSmall = useBreakpointValue(
+    { base: true, md: false },
+    { fallback: 'md' },
+  )
   const { t } = useTranslation('templates')
   const date = useMemo(() => new Date(now), [now])
   const { address } = useAccount()
   const filter = useAssetFilterFromQuery()
-  const orderBy = useOrderByQuery<AssetsOrderBy>('CREATED_AT_DESC')
+  const orderBy = useOrderByQuery<AssetsOrderBy>('BEST_PRICE_ASC')
   const { page, limit, offset } = usePaginateQuery()
-  const { data, previousData, loading } = useFetchAllErc721And1155Query({
+  const { data: assetsData } = useFetchAllErc721And1155Query({
     variables: {
       now: date,
       address: address || '',
@@ -70,14 +67,18 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
     },
   })
 
-  const assetsData = useMemo(() => data || previousData, [data, previousData])
-
   const { showFilters, toggleFilters, close, count } =
     useAssetFilterState(filter)
 
   const updateFilter = useCallback(
     async (filter: Filter) => {
-      const { traits, currency, ...otherFilters } = filter
+      const {
+        traits,
+        currency,
+        collectionSearch, // exclude from query
+        propertySearch, // exclude from query
+        ...otherFilters
+      } = filter
       const cleanData = removeEmptyFromObject({
         ...Object.keys(query).reduce((acc, value) => {
           if (value.startsWith('trait')) return acc
@@ -101,6 +102,8 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
     [push, pathname, query],
   )
 
+  const assets = assetsData?.assets?.nodes
+
   const changeOrder = useCallback(
     async (orderBy: any) => {
       await push(
@@ -112,7 +115,7 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
     [push, pathname, query],
   )
 
-  const [changePage, changeLimit] = usePaginate()
+  const { changeLimit } = usePaginate()
 
   return (
     <>
@@ -137,6 +140,14 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
                 name="orderBy"
                 onChange={changeOrder}
                 choices={[
+                  {
+                    label: t('explore.nfts.orderBy.values.priceAsc'),
+                    value: 'BEST_PRICE_ASC',
+                  },
+                  {
+                    label: t('explore.nfts.orderBy.values.priceDesc'),
+                    value: 'BEST_PRICE_DESC',
+                  },
                   {
                     label: t('explore.nfts.orderBy.values.createdAtDesc'),
                     value: 'CREATED_AT_DESC',
@@ -164,14 +175,14 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
           )}
           <Grid gap="4" templateColumns={{ base: '1fr', md: '1fr 3fr' }}>
             {showFilters && !isSmall && (
-              <GridItem as="aside">
+              <GridItem as="aside" overflow="hidden">
                 <FilterAsset onFilterChange={updateFilter} filter={filter} />
               </GridItem>
             )}
             <GridItem gap={6} colSpan={showFilters ? 1 : 2}>
-              {loading || !assetsData ? (
+              {assets === undefined ? (
                 <SkeletonGrid
-                  items={environment.PAGINATION_LIMIT}
+                  items={PAGINATION_LIMIT}
                   compact
                   columns={
                     showFilters
@@ -181,8 +192,7 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
                 >
                   <SkeletonTokenCard />
                 </SkeletonGrid>
-              ) : assetsData?.assets?.totalCount &&
-                assetsData.assets.totalCount > 0 ? (
+              ) : assets.length > 0 ? (
                 <SimpleGrid
                   flexWrap="wrap"
                   spacing="4"
@@ -192,58 +202,32 @@ const ExplorePage: NextPage<Props> = ({ now }) => {
                       : { sm: 2, md: 4, lg: 6 }
                   }
                 >
-                  {assetsData?.assets.nodes.map((x, i) => (
+                  {assets.map((asset, i) => (
                     <Flex key={i} justify="center" overflow="hidden">
-                      <TokenCard
-                        asset={convertAsset(x)}
-                        creator={convertUser(x.creator, x.creator.address)}
-                        auction={
-                          x.auctions.nodes[0]
-                            ? convertAuctionWithBestBid(x.auctions.nodes[0])
-                            : undefined
-                        }
-                        sale={convertSale(x.firstSale.nodes[0])}
-                        numberOfSales={x.firstSale.totalCount}
-                        hasMultiCurrency={
-                          x.firstSale.totalCurrencyDistinctCount > 1
-                        }
-                      />
+                      <TokenCard asset={asset} />
                     </Flex>
                   ))}
                 </SimpleGrid>
               ) : (
-                <Flex align="center" justify="center" h="full" py={12}>
-                  <Empty
-                    title={t('explore.nfts.empty.title')}
-                    description={t('explore.nfts.empty.description')}
-                  />
-                </Flex>
+                <Empty
+                  title={t('explore.nfts.empty.title')}
+                  description={t('explore.nfts.empty.description')}
+                />
               )}
-              <Box mt="6" py="6" borderTop="1px" borderColor="gray.200">
+              <Divider
+                my="6"
+                display={assets?.length !== 0 ? 'block' : 'none'}
+              />
+              {assets?.length !== 0 && (
                 <Pagination
                   limit={limit}
-                  limits={[environment.PAGINATION_LIMIT, 24, 36, 48]}
+                  limits={[PAGINATION_LIMIT, 24, 36, 48]}
                   page={page}
-                  total={assetsData?.assets?.totalCount}
-                  onPageChange={changePage}
                   onLimitChange={changeLimit}
-                  result={{
-                    label: t('pagination.result.label'),
-                    caption: (props) => (
-                      <Trans
-                        ns="templates"
-                        i18nKey="pagination.result.caption"
-                        values={props}
-                        components={[
-                          <Text as="span" color="brand.black" key="text" />,
-                        ]}
-                      />
-                    ),
-                    pages: (props) =>
-                      t('pagination.result.pages', { count: props.total }),
-                  }}
+                  hasNextPage={assetsData?.assets?.pageInfo.hasNextPage}
+                  hasPreviousPage={assetsData?.assets?.pageInfo.hasPreviousPage}
                 />
-              </Box>
+              )}
             </GridItem>
           </Grid>
         </>

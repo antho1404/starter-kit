@@ -3,7 +3,8 @@ import { BigNumber } from '@ethersproject/bignumber'
 import { FaTag } from '@react-icons/all-files/fa/FaTag'
 import { HiBadgeCheck } from '@react-icons/all-files/hi/HiBadgeCheck'
 import Trans from 'next-translate/Trans'
-import { VFC } from 'react'
+import { FC } from 'react'
+import { AccountVerificationStatus } from '../../../graphql'
 import { formatDate } from '../../../utils'
 import Link from '../../Link/Link'
 import { ListItem } from '../../List/List'
@@ -12,13 +13,15 @@ import WalletAddress from '../../Wallet/Address'
 
 type IProps = {
   date: Date
-  quantity: BigNumber
-  unitPrice: BigNumber
+  quantity: string
+  unitPrice: string
   fromAddress: string
   from: {
     name: string | null
     image: string | null
-    verified: boolean
+    verification: {
+      status: AccountVerificationStatus
+    } | null
   } | null
   currency: {
     decimals: number
@@ -26,7 +29,7 @@ type IProps = {
   } | null
 }
 
-const ListingListItem: VFC<IProps> = ({
+const ListingListItem: FC<IProps> = ({
   currency,
   fromAddress,
   from,
@@ -36,12 +39,17 @@ const ListingListItem: VFC<IProps> = ({
 }) => {
   return (
     <ListItem
+      px={0}
       image={<Icon as={FaTag} h={5} w={5} color="gray.400" />}
       label={
         <Trans
           ns="components"
           i18nKey="history.listing.listed"
-          values={{ count: quantity.toNumber() }}
+          values={{
+            count: BigNumber.from(quantity).lte(Number.MAX_SAFE_INTEGER - 1)
+              ? BigNumber.from(quantity).toNumber()
+              : Number.MAX_SAFE_INTEGER - 1,
+          }}
           components={[
             <Text
               as="span"
@@ -84,7 +92,7 @@ const ListingListItem: VFC<IProps> = ({
               >
                 {from?.name || <WalletAddress address={fromAddress} isShort />}
               </Text>
-              {from?.verified && (
+              {from?.verification?.status === 'VALIDATED' && (
                 <Icon as={HiBadgeCheck} color="brand.500" h={4} w={4} />
               )}
             </Flex>,

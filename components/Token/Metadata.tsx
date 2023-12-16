@@ -2,62 +2,70 @@ import { Flex, Heading, Icon, Stack, Text } from '@chakra-ui/react'
 import { BigNumber } from '@ethersproject/bignumber'
 import { IoImageOutline } from '@react-icons/all-files/io5/IoImageOutline'
 import useTranslation from 'next-translate/useTranslation'
-import { VFC } from 'react'
-import { Standard } from '../../graphql'
+import { FC } from 'react'
+import { AccountVerificationStatus, MintType, Standard } from '../../graphql'
 import Avatar from '../User/Avatar'
 import OwnersModal from './Owners/Modal'
 import Supply from './Supply'
 
 export type Props = {
-  assetId: string
-  standard: Standard
-  creator:
-    | {
-        address: string
-        name: string | null | undefined
-        image: string | null | undefined
-        verified: boolean
-      }
-    | undefined
-  owners: {
-    address: string
-    image: string | null | undefined
-    name: string | null | undefined
-    verified: boolean
+  asset: {
+    chainId: number
+    collectionAddress: string
+    tokenId: string
     quantity: string
-  }[]
-  numberOfOwners: number
-  saleSupply: BigNumber
-  totalSupply: BigNumber | null | undefined
-  isOpenCollection: boolean
+    collection: {
+      standard: Standard
+      mintType: MintType
+    }
+    creator: {
+      address: string
+      name: string | null
+      image: string | null
+      verification: {
+        status: AccountVerificationStatus
+      } | null
+    }
+    ownerships: {
+      totalCount: number
+      nodes: {
+        ownerAddress: string
+        quantity: string
+        owner: {
+          address: string
+          name: string | null
+          image: string | null
+          verification: {
+            status: AccountVerificationStatus
+          } | null
+        }
+      }[]
+    }
+    sales: {
+      totalAvailableQuantitySum: string
+    }
+  }
 }
 
-const TokenMetadata: VFC<Props> = ({
-  assetId,
-  standard,
-  creator,
-  owners,
-  numberOfOwners,
-  saleSupply,
-  totalSupply,
-  isOpenCollection,
-}) => {
+const TokenMetadata: FC<Props> = ({ asset }) => {
   const { t } = useTranslation('components')
+
+  const isOpenCollection = asset.collection.mintType === 'PUBLIC'
+  const numberOfOwners = asset.ownerships.totalCount
+  const saleSupply = BigNumber.from(asset.sales.totalAvailableQuantitySum)
+  const totalSupply = BigNumber.from(asset.quantity)
+  const owners = asset.ownerships.nodes
+
   return (
     <Flex wrap="wrap" rowGap={6} columnGap={8}>
-      {creator && (
+      {asset.creator && (
         <Stack spacing={3}>
           <Heading as="h5" variant="heading3" color="gray.500">
             {isOpenCollection
               ? t('token.metadata.creator')
               : t('token.metadata.minted_by')}
           </Heading>
-          <Avatar
-            address={creator.address}
-            image={creator.image}
-            name={creator.name}
-            verified={creator.verified}
-          />
+          <Avatar user={asset.creator} />
         </Stack>
       )}
       {numberOfOwners === 1 && owners[0] && (
@@ -65,12 +73,7 @@ const TokenMetadata: VFC<Props> = ({
           <Heading as="h5" variant="heading3" color="gray.500">
             {t('token.metadata.owner')}
           </Heading>
-          <Avatar
-            address={owners[0].address}
-            image={owners[0].image}
-            name={owners[0].name}
-            verified={owners[0].verified}
-          />
+          <Avatar user={owners[0].owner} />
         </Stack>
       )}
       {numberOfOwners > 1 && (
@@ -78,14 +81,10 @@ const TokenMetadata: VFC<Props> = ({
           <Heading as="h5" variant="heading3" color="gray.500">
             {t('token.metadata.owners')}
           </Heading>
-          <OwnersModal
-            assetId={assetId}
-            ownersPreview={owners}
-            numberOfOwners={numberOfOwners}
-          />
+          <OwnersModal asset={asset} />
         </Stack>
       )}
-      {standard === 'ERC721' && (
+      {asset.collection.standard === 'ERC721' && (
         <Stack spacing={3}>
           <Heading as="h5" variant="heading3" color="gray.500">
             {t('token.metadata.edition')}
@@ -98,7 +97,7 @@ const TokenMetadata: VFC<Props> = ({
           </Flex>
         </Stack>
       )}
-      {standard === 'ERC1155' && (
+      {asset.collection.standard === 'ERC1155' && (
         <Stack spacing={3}>
           <Heading as="h5" variant="heading3" color="gray.500">
             {t('token.metadata.edition')}

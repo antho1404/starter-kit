@@ -4,7 +4,8 @@ import { FaLongArrowAltRight } from '@react-icons/all-files/fa/FaLongArrowAltRig
 import { HiBadgeCheck } from '@react-icons/all-files/hi/HiBadgeCheck'
 import { HiOutlineExternalLink } from '@react-icons/all-files/hi/HiOutlineExternalLink'
 import Trans from 'next-translate/Trans'
-import { VFC } from 'react'
+import { FC } from 'react'
+import { AccountVerificationStatus } from '../../../graphql'
 import { BlockExplorer } from '../../../hooks/useBlockExplorer'
 import { formatDate } from '../../../utils'
 import Link from '../../Link/Link'
@@ -13,24 +14,28 @@ import WalletAddress from '../../Wallet/Address'
 
 type IProps = {
   date: Date
-  quantity: BigNumber
+  quantity: string
   fromAddress: string
   from: {
     name: string | null
     image: string | null
-    verified: boolean
+    verification: {
+      status: AccountVerificationStatus
+    } | null
   } | null
   toAddress: string
   to: {
     name: string | null
     image: string | null
-    verified: boolean
+    verification: {
+      status: AccountVerificationStatus
+    } | null
   } | null
   transactionHash: string | null
   blockExplorer: BlockExplorer
 }
 
-const TransferListItem: VFC<IProps> = ({
+const TransferListItem: FC<IProps> = ({
   date,
   fromAddress,
   from,
@@ -42,12 +47,17 @@ const TransferListItem: VFC<IProps> = ({
 }) => {
   return (
     <ListItem
+      px={0}
       image={<Icon as={FaLongArrowAltRight} h={5} w={5} color="gray.400" />}
       label={
         <Trans
           ns="components"
           i18nKey="history.transfer.transferred"
-          values={{ count: quantity.toNumber() }}
+          values={{
+            count: BigNumber.from(quantity).lte(Number.MAX_SAFE_INTEGER - 1)
+              ? BigNumber.from(quantity).toNumber()
+              : Number.MAX_SAFE_INTEGER - 1,
+          }}
           components={[
             <Text
               as="span"
@@ -71,7 +81,7 @@ const TransferListItem: VFC<IProps> = ({
               >
                 {to?.name || <WalletAddress address={toAddress} isShort />}
               </Text>
-              {to?.verified && (
+              {to?.verification?.status === 'VALIDATED' && (
                 <Icon as={HiBadgeCheck} color="brand.500" h={4} w={4} />
               )}
             </Flex>,
@@ -99,7 +109,7 @@ const TransferListItem: VFC<IProps> = ({
               >
                 {from?.name || <WalletAddress address={fromAddress} isShort />}
               </Text>
-              {from?.verified && (
+              {from?.verification?.status === 'VALIDATED' && (
                 <Icon as={HiBadgeCheck} color="brand.500" h={4} w={4} />
               )}
             </Flex>,

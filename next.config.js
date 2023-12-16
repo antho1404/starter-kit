@@ -3,12 +3,14 @@ const nextTranslate = require('next-translate')
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 })
+const removeImports = require('next-remove-imports')()
 
 /**
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
   images: {
+    minimumCacheTTL: 3600 * 24 * 365, // 1 year
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
@@ -29,4 +31,4 @@ const nextConfig = {
   reactStrictMode: true,
 }
 
-module.exports = nextTranslate(withBundleAnalyzer(nextConfig))
+module.exports = nextTranslate(withBundleAnalyzer(removeImports(nextConfig)))

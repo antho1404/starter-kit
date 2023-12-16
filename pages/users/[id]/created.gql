@@ -7,12 +7,18 @@ query FetchCreatedAssets(
   $orderBy: [AssetsOrderBy!]
 ) {
   created: assets(
-    filter: { ownershipsExist: true, creatorAddress: { equalTo: $address } }
+    filter: {
+      quantity: { greaterThan: "0" }
+      creatorAddress: { equalTo: $address }
+    }
     first: $limit
     offset: $offset
     orderBy: $orderBy
   ) {
-    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
     nodes {
       ...AssetDetail
     }

@@ -6,6 +6,13 @@
       "edit-profile": "プロフィールの編集"
     }
   },
+  "network": {
+    "button": {
+      "sign-in": "サインイン",
+      "signing-in": "サインイン...",
+      "switch-network": "スイッチネットワーク"
+    }
+  },
   "bid": {
     "list": {
       "none": "入札無し"
@@ -57,9 +64,65 @@
   },
   "countdown": {
     "day": "{{value}}日",
+    "day-long": "日々",
     "hour": "{{value}}時間",
+    "hour-long": "時間",
     "min": "{{value}}分",
-    "sec": "{{value}}秒"
+    "min-long": "分",
+    "sec": "{{value}}秒",
+    "sec-long": "秒"
+  },
+  "drop": {
+    "timeline": {
+      "upcoming": "Upcoming",
+      "in-progress": "In progress",
+      "ended": "Ended"
+    },
+    "by": "By {{address}}",
+    "supply": {
+      "available_one": "<0/> item",
+      "available_other": "<0/> items",
+      "infinite": "Open edition"
+    },
+    "progress": {
+      "percentage": "{{percentage}}% minted",
+      "minted": "Minted"
+    },
+    "listItem": {
+      "price": "Price: <0/>",
+      "startDate": "Starts: {{startDate}}",
+      "endDate": "Ends: {{endDate}}",
+      "supply": "Supply: {{supply}}",
+      "maxQuantityPerWallet": "Mint limit: {{maxQuantityPerWallet}} per wallet",
+      "eligible": "Eligible",
+      "notEligible": "Not eligible"
+    },
+    "form": {
+      "ended": {
+        "title": "Mint ended",
+        "minted": "Minted:",
+        "totalMinted": "{{totalMinted}} items",
+        "viewCollection": "View collection"
+      },
+      "in-progress": {
+        "price": "Price:",
+        "supply": "Supply:",
+        "mintLimit": "Mint limit:",
+        "limit": "{{maxQuantityPerWallet}} per wallet",
+        "mintedOut": "Minted out",
+        "mint": "Mint",
+        "notEligible": "You're not eligible for this mint stage",
+        "endsIn": "Ends in <0/>"
+      },
+      "upcoming": {
+        "price": "Price:",
+        "supply": "Supply:",
+        "mintLimit": "Mint limit:",
+        "limit": "{{maxQuantityPerWallet}} per wallet",
+        "disabled": "Minting soon",
+        "startsIn": "Starts in <0/>"
+      }
+    }
   },
   "dropzone": {
     "required": "必須の項目です",
@@ -72,8 +135,20 @@
       "clear": "フィルターをクリアする"
     },
     "collections": {
+      "more": "もっと読み込む",
       "chains": {
         "label": "鎖"
+      },
+      "empty": {
+        "title": "コレクションが見つかりません",
+        "description": "フィルターを更新して、より多くのコレクションを見つけてください。"
+      }
+    },
+    "traits": {
+      "more": "もっと読み込む",
+      "empty": {
+        "title": "特性が見つかりません",
+        "description": "フィルターを更新して、より多くの特性を見つけてください。"
       }
     },
     "assets": {
@@ -119,7 +194,7 @@
       },
       "properties": {
         "label": "プロパティ",
-        "labelWithCollection": "コレクションとプロパティ",
+        "labelWithCollection": "コレクション",
         "search": {
           "placeholder": "フィルターのプロパティ"
         }
@@ -131,6 +206,15 @@
   },
   "history": {
     "none": "履歴無し",
+    "filter": {
+      "all": "すべて",
+      "lazymint": "遅延作成",
+      "listing": "リスト",
+      "purchase": "購入",
+      "transfer": "転送",
+      "mint": "Mint",
+      "burn": "Burn"
+    },
     "listing": {
       "by": "までに<0/>",
       "listed_one": "<0>{{count}}</0> エディションのリスト <1/>",
@@ -155,6 +239,11 @@
       "from": "<0/>から<1/>へ",
       "purchased_one": "<0>{{count}}</0> エディションを購入しました <1/>",
       "purchased_other": "<0>{{count}}</0> 各エディションが購入されました <1/>"
+    },
+    "burn": {
+      "quantity_one": "{{count}} エディションが燃やされました",
+      "purchased_other": "{{count}} エディションが燃やされました",
+      "by": "までに{{user}}"
     }
   },
   "modal": {
@@ -330,6 +419,25 @@
         }
       }
     },
+    "drop": {
+      "title": "Mint",
+      "description": "Confirm transaction in your wallet to continue, this action will cost you gas fees.",
+      "action": "View on {{name}}",
+      "transaction": {
+        "signature": {
+          "title": "Your confirmation is required",
+          "description": "Open and confirm transaction in your wallet"
+        },
+        "pending": {
+          "title": "Confirmation is pending",
+          "description": "0/2 completed - Transaction is pending on Blockchain"
+        },
+        "ownership": {
+          "title": "Confirmation is pending",
+          "description": "1/2 completed - Ownership is being checked"
+        }
+      }
+    },
     "login": {
       "title": "ウォレットでサインインする",
       "description": "次のいずれかのオプションを使用して接続します。",
@@ -341,8 +449,9 @@
     "open-menu": "メインメニューを開く",
     "open-activity": "メインメニューを開く",
     "explore": "検索",
+    "drops": "ドロップ",
     "create": "作成する",
-    "search": "検索",
+    "search": "NFT、コレクション、またはアカウントを検索する",
     "sign-in": "サインイン",
     "chat": "メッセージ",
     "signing-in": "サインイン...",
@@ -484,6 +593,9 @@
       }
     }
   },
+  "pagination": {
+    "label": "ページあたりの結果"
+  },
   "referral": {
     "form": {
       "connect": "サインインして紹介リンクを生成する",
@@ -545,37 +657,6 @@
         "no-bids": "まだ入札はありません",
         "view": "私のNFTを見る",
         "ongoing-auction": "進行中のオークション"
-      },
-      "form": {
-        "submit": "オファーを作成",
-        "validation": {
-          "required": "必須の項目です",
-          "decimals": "項目は、最大 {{ nbDecimals }} の小数をサポートします。",
-          "positive": "項目は 0 より大きい必要があります。"
-        },
-        "currency": {
-          "label": "通貨",
-          "hint": "入札可能なオークションの通貨を設定する",
-          "placeholder": "通貨の選択"
-        },
-        "price": {
-          "label": "最低落札価格",
-          "hint": "落札に必要な最低金額の設定",
-          "placeholder": "最低入札価格の入力",
-          "info": "(オプション)"
-        },
-        "start": {
-          "label": "開始日",
-          "placeholder": "今すぐ"
-        },
-        "end": {
-          "label": "終了日"
-        },
-        "banner": {
-          "title": "オークションのルール",
-          "item1": "オークションが開始すると、出品を取り消すことはできません。これによってプラットフォーム利用者が公平に利用できます。",
-          "item2": "有効期限: 長い販売期間のせいで忘れられることを防ぐために、設定した終了日である {{validity}} 過ぎると、オークションと入札はキャンセルされます。期間が終了すれば、いつでも再販売が可能です。"
-        }
       },
       "info": {
         "title": "販売の確認",
@@ -751,11 +832,6 @@
         "category": {
           "label": "カテゴリー",
           "placeholder": "カテゴリーを選択"
-        },
-        "unlockable": {
-          "label": "ロック解除可能なコンテンツ",
-          "hint": "(オプション)",
-          "choice": "アイテムのコンテンツは、アイテムの所有者のみがロックを解除できます。"
         }
       }
     },
@@ -792,6 +868,7 @@
     "percent": "{{value}}%"
   },
   "truncate": {
+    "show-less": "表示を短縮する",
     "show-more": "続きを表示する"
   },
   "user": {

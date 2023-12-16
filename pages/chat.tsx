@@ -1,46 +1,57 @@
 import { Box } from '@chakra-ui/react'
-import type { Account } from '@nft/chat'
-import { Chat as ChatComponent, ChatProvider } from '@nft/chat'
+import { Account, Chat, ChatProvider } from '@nft/chat'
 import request, { gql } from 'graphql-request'
 import { NextPage } from 'next'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import Head from '../components/Head'
-import environment from '../environment'
+import useEnvironment from '../hooks/useEnvironment'
 import useLoginRedirect from '../hooks/useLoginRedirect'
 import useSigner from '../hooks/useSigner'
 import LargeLayout from '../layouts/large'
-import { theme } from '../styles/theme'
+import { getTheme } from '../styles/theme'
 
 const accounts = new Map<string, Promise<Account>>()
 
 const ChatPage: NextPage = () => {
+  const { LITEFLOW_API_KEY, BRAND_COLOR } = useEnvironment()
   const signer = useSigner()
   useLoginRedirect()
 
-  const lookupAddress = useCallback(async (address: string) => {
-    const res = accounts.get(address)
-    if (res) return res
-    const promise = request(
-      `${
-        process.env.NEXT_PUBLIC_LITEFLOW_BASE_URL || 'https://api.liteflow.com'
-      }/${environment.LITEFLOW_API_KEY}/graphql`,
-      gql`
-        query LookupAccount($address: Address!) {
-          account(address: $address) {
-            name
-            image
-          }
+  const lookupAddress = useCallback(
+    async (address: string) => {
+      const res = accounts.get(address)
+      if (res) return res
+      const promise = request<{
+        account: {
+          name?: string
+          image?: string
         }
-      `,
-      { address: address.toLowerCase() },
-    ).then(({ account }) => ({
-      name: account?.name || undefined,
-      avatar: account?.image || undefined,
-    }))
+      }>(
+        `${
+          process.env.NEXT_PUBLIC_LITEFLOW_BASE_URL ||
+          'https://api.liteflow.com'
+        }/${LITEFLOW_API_KEY}/graphql`,
+        gql`
+          query LookupAccount($address: Address!) {
+            account(address: $address) {
+              name
+              image
+            }
+          }
+        `,
+        { address: address.toLowerCase() },
+      ).then(({ account }) => ({
+        name: account?.name || undefined,
+        avatar: account?.image || undefined,
+      }))
 
-    accounts.set(address, promise)
-    return promise
-  }, [])
+      accounts.set(address, promise)
+      return promise
+    },
+    [LITEFLOW_API_KEY],
+  )
+
+  const theme = useMemo(() => getTheme(BRAND_COLOR), [BRAND_COLOR])
 
   return (
     <LargeLayout>
@@ -57,11 +68,11 @@ const ChatPage: NextPage = () => {
         mx={{ base: -6, lg: 0 }}
       >
         <ChatProvider
-          signer={signer as any}
+          signer={signer}
           theme={theme}
           lookupAddress={lookupAddress}
         >
-          <ChatComponent />
+          <Chat />
         </ChatProvider>
       </Box>
     </LargeLayout>

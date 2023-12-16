@@ -19,6 +19,21 @@ query FetchCollectionDetails($collectionAddress: Address!, $chainId: Int!) {
         status
       }
     }
+    totalVolume {
+      refCode
+      valueInRef
+    }
+    floorPrice {
+      refCode
+      valueInRef
+    }
+  }
+}
+
+query FetchCollectionMetrics($collectionAddress: Address!, $chainId: Int!) {
+  collection(address: $collectionAddress, chainId: $chainId) {
+    address
+    chainId
     numberOfOwners
     supply
     floorPrice {
@@ -44,7 +59,7 @@ query FetchCollectionAssets(
 ) {
   assets(
     filter: {
-      ownershipsExist: true
+      quantity: { greaterThan: "0" }
       chainId: { equalTo: $chainId }
       collectionAddress: { equalTo: $collectionAddress }
       and: $filter
@@ -53,10 +68,9 @@ query FetchCollectionAssets(
     first: $limit
     offset: $offset
   ) {
-    totalCount
     pageInfo {
       hasNextPage
-      endCursor
+      hasPreviousPage
     }
     nodes {
       id
@@ -66,12 +80,7 @@ query FetchCollectionAssets(
       name
       description
       image
-      animationUrl
-      hasUnlockableContent
-      unlockedContent {
-        url
-        mimetype
-      }
+      imageMimetype
       createdAt
       creator {
         username
@@ -87,10 +96,12 @@ query FetchCollectionAssets(
         address
         image
         name
+        standard
       }
       owned: ownership(ownerAddress: $currentAccount) {
         quantity
       }
+      quantity
       bestBid: bids(
         orderBy: [UNIT_PRICE_IN_REF_DESC, CREATED_AT_ASC]
         filter: { expiredAt: { greaterThan: $now } }
@@ -158,42 +169,6 @@ query FetchCollectionAssets(
           }
           currency {
             image
-            symbol
-          }
-        }
-      }
-      sales(
-        first: 1
-        orderBy: [UNIT_PRICE_IN_REF_ASC, CREATED_AT_ASC]
-        filter: { expiredAt: { greaterThan: $now } } # This filter should also be applied to the root query if sorting by sales. See getExtraFilterForSort function in utils/post/sorting.ts
-      ) {
-        nodes {
-          id
-          unitPrice
-          currency {
-            id
-            image
-            symbol
-            decimals
-          }
-          maker {
-            address
-          }
-        }
-      }
-      bids(
-        first: 1
-        orderBy: [UNIT_PRICE_IN_REF_ASC, CREATED_AT_ASC]
-        filter: { expiredAt: { greaterThan: $now } } # This filter should also be applied to the root query if sorting on by bids
-      ) {
-        nodes {
-          id
-          unitPrice
-          amount
-          currency {
-            image
-            id
-            decimals
             symbol
           }
         }

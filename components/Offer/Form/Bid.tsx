@@ -1,5 +1,4 @@
 import {
-  Button,
   FormControl,
   FormErrorMessage,
   FormHelperText,
@@ -20,22 +19,24 @@ import {
   useDisclosure,
   useToast,
 } from '@chakra-ui/react'
-import { Signer, TypedDataSigner } from '@ethersproject/abstract-signer'
-import { BigNumber } from '@ethersproject/bignumber'
-import { useCreateOffer } from '@nft/hooks'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { toAddress } from '@liteflow/core'
+import { useCreateOffer } from '@liteflow/react'
 import { FaInfoCircle } from '@react-icons/all-files/fa/FaInfoCircle'
 import dayjs from 'dayjs'
 import useTranslation from 'next-translate/useTranslation'
 import { FC, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import invariant from 'ts-invariant'
-import { useFeesQuery } from '../../../graphql'
+import { BidOnAssetQuery } from '../../../graphql'
+import useAccount from '../../../hooks/useAccount'
 import useBalance from '../../../hooks/useBalance'
-import { BlockExplorer } from '../../../hooks/useBlockExplorer'
+import useBlockExplorer from '../../../hooks/useBlockExplorer'
+import useEnvironment from '../../../hooks/useEnvironment'
+import useFees from '../../../hooks/useFees'
 import useParseBigNumber from '../../../hooks/useParseBigNumber'
+import useSigner from '../../../hooks/useSigner'
 import { formatDateDatetime, formatError } from '../../../utils'
-import ButtonWithNetworkSwitch from '../../Button/SwitchNetwork'
+import ConnectButtonWithNetworkSwitch from '../../Button/ConnectWithNetworkSwitch'
 import Image from '../../Image/Image'
 import CreateOfferModal from '../../Modal/CreateOffer'
 import Select from '../../Select/Select'
@@ -51,66 +52,68 @@ type FormData = {
 }
 
 type Props = {
-  signer: (Signer & TypedDataSigner) | undefined
-  account: string | null | undefined
+  asset: NonNullable<BidOnAssetQuery['asset']>
   currencies: {
     id: string
+    address: string | null
     decimals: number
     symbol: string
     image: string
     name: string
   }[]
-  chainId: number
-  collectionAddress: string
-  tokenId: string
-  blockExplorer: BlockExplorer
   onCreated: (offerId: string) => void
-  auctionId: string | undefined
-  auctionValidity: number
-  offerValidity: number
-} & (
-  | {
-      multiple: true
-      supply: string
-    }
-  | {
-      multiple: false
-      owner?: string
-    }
-)
+}
 
-const OfferFormBid: FC<Props> = (props) => {
+const OfferFormBid: FC<Props> = ({ asset, currencies, onCreated }) => {
   const { t } = useTranslation('components')
-  const {
-    signer,
-    account,
-    currencies,
-    chainId,
-    collectionAddress,
-    tokenId,
-    blockExplorer,
-    onCreated,
-    auctionId,
-    auctionValidity,
-    offerValidity,
-  } = props
+  const signer = useSigner()
+  const { address: account } = useAccount()
   const [createOffer, { activeStep, transactionHash }] = useCreateOffer(signer)
+  const { AUCTION_VALIDITY_IN_SECONDS, OFFER_VALIDITY_IN_SECONDS } =
+    useEnvironment()
+  const blockExplorer = useBlockExplorer(asset.chainId)
   const toast = useToast()
-  const { openConnectModal } = useConnectModal()
   const {
     isOpen: createOfferIsOpen,
     onOpen: createOfferOnOpen,
     onClose: createOfferOnClose,
   } = useDisclosure()
 
-  const defaultAuctionExpirationValue = formatDateDatetime(
-    dayjs().add(auctionValidity, 'second').toISOString(),
+  const auctionId = useMemo(
+    () => asset.auctions.nodes[0]?.id,
+    [asset.auctions.nodes],
   )
-  const defaultExpirationValue = formatDateDatetime(
-    dayjs().add(offerValidity, 'second').toISOString(),
+  const isMultiple = useMemo(
+    () => asset.collection.standard === 'ERC1155',
+    [asset.collection.standard],
   )
-  const minDate = formatDateDatetime(dayjs().add(1, 'day').toISOString())
-  const maxDate = formatDateDatetime(dayjs().add(1, 'year').toISOString())
+  const ownerAddress = useMemo(
+    () => asset.ownerships.nodes[0]?.ownerAddress,
+    [asset.ownerships.nodes],
+  )
+
+  const defaultAuctionExpirationValue = useMemo(
+    () =>
+      formatDateDatetime(
+        dayjs().add(AUCTION_VALIDITY_IN_SECONDS, 'second').toISOString(),
+      ),
+    [AUCTION_VALIDITY_IN_SECONDS],
+  )
+  const defaultExpirationValue = useMemo(
+    () =>
+      formatDateDatetime(
+        dayjs().add(OFFER_VALIDITY_IN_SECONDS, 'second').toISOString(),
+      ),
+    [OFFER_VALIDITY_IN_SECONDS],
+  )
+  const minDate = useMemo(
+    () => formatDateDatetime(dayjs().add(1, 'day').toISOString()),
+    [],
+  )
+  const maxDate = useMemo(
+    () => formatDateDatetime(dayjs().add(1, 'year').toISOString()),
+    [],
+  )
   const {
     register,
     handleSubmit,
@@ -152,52 +155,48 @@ const OfferFormBid: FC<Props> = (props) => {
   const priceUnit = useParseBigNumber(price, currency?.decimals)
   const quantityBN = useParseBigNumber(quantity)
 
-  const { data } = useFeesQuery({
-    variables: {
-      chainId,
-      collectionAddress,
-      tokenId,
-      currencyId: currency?.id || '',
-      quantity: quantityBN.toString(),
-      unitPrice: priceUnit.toString(),
-    },
-    skip: !currency?.id,
+  const { feesPerTenThousand, loading: loadingFees } = useFees({
+    chainId: asset.chainId,
+    collectionAddress: asset.collectionAddress,
+    tokenId: asset.tokenId,
+    currencyId: currency?.id,
+    quantity: quantityBN,
+    unitPrice: priceUnit,
   })
-  const feesPerTenThousand = useMemo(
-    () => data?.orderFees.valuePerTenThousand || 0,
-    [data],
-  )
-
-  const totalPrice = useMemo(() => {
-    return priceUnit.mul(quantityBN)
-  }, [priceUnit, quantityBN])
-
-  const totalFees = useMemo(() => {
-    if (!totalPrice) return BigNumber.from(0)
-    return totalPrice.mul(feesPerTenThousand).div(10000)
-  }, [totalPrice, feesPerTenThousand])
 
   const canBid = useMemo(() => {
-    if (!balance) return false
-    if (!totalPrice) return true
+    if (
+      balance === undefined ||
+      feesPerTenThousand === undefined ||
+      loadingFees // disable creation of bid if fees are being fetched
+    )
+      return false
+    const totalPrice = priceUnit.mul(quantityBN)
+    const totalFees = totalPrice.mul(feesPerTenThousand).div(10000)
     return balance.gte(totalPrice.add(totalFees))
-  }, [balance, totalPrice, totalFees])
+  }, [balance, feesPerTenThousand, loadingFees, priceUnit, quantityBN])
 
   const onSubmit = handleSubmit(async ({ expiredAt }) => {
     if (!auctionId && !expiredAt) throw new Error('expiredAt is required')
-    invariant(currency)
+    invariant(currency?.address, 'currency address is required')
     try {
       createOfferOnOpen()
       const id = await createOffer({
         type: 'BUY',
         quantity: quantityBN,
-        unitPrice: priceUnit,
-        assetId: [chainId, collectionAddress, tokenId].join('-'),
-        currencyId: currency.id,
-        takerAddress: props.multiple
+        unitPrice: {
+          amount: priceUnit,
+          currency: toAddress(currency.address),
+        },
+        chain: asset.chainId,
+        collection: toAddress(asset.collectionAddress),
+        token: asset.tokenId,
+        taker: isMultiple
           ? undefined // Keep the bid open for anyone that can fill it
-          : props.owner?.toLowerCase(),
-        expiredAt: auctionId ? null : new Date(expiredAt),
+          : ownerAddress
+          ? toAddress(ownerAddress)
+          : undefined,
+        expiredAt: auctionId ? undefined : new Date(expiredAt),
         auctionId,
       })
 
@@ -236,7 +235,7 @@ const OfferFormBid: FC<Props> = (props) => {
           placeholder={t('offer.form.bid.currency.placeholder')}
           choices={currencies.map((x) => ({
             value: x.id,
-            label: x.symbol || '',
+            label: x.symbol,
             image: x.image,
             caption: x.name,
           }))}
@@ -252,7 +251,7 @@ const OfferFormBid: FC<Props> = (props) => {
           <FormLabel htmlFor="bid" m={0}>
             {t('offer.form.bid.price.label')}
           </FormLabel>
-          <FormHelperText>({currency.symbol})</FormHelperText>
+          <FormHelperText m={0}>({currency.symbol})</FormHelperText>
         </HStack>
         <InputGroup>
           <NumberInput
@@ -291,6 +290,8 @@ const OfferFormBid: FC<Props> = (props) => {
               alt={currency.symbol}
               width={24}
               height={24}
+              w={6}
+              h={6}
               objectFit="cover"
             />
           </InputRightElement>
@@ -300,13 +301,13 @@ const OfferFormBid: FC<Props> = (props) => {
         )}
       </FormControl>
 
-      {props.multiple && (
+      {isMultiple && (
         <FormControl isInvalid={!!errors.quantity}>
           <HStack spacing={1} mb={2}>
             <FormLabel htmlFor="quantity" m={0}>
               {t('offer.form.bid.quantity.label')}
             </FormLabel>
-            <FormHelperText>
+            <FormHelperText m={0}>
               ({t('offer.form.bid.quantity.suffix')})
             </FormHelperText>
           </HStack>
@@ -314,7 +315,7 @@ const OfferFormBid: FC<Props> = (props) => {
             <NumberInput
               clampValueOnBlur={false}
               min={1}
-              max={parseInt(props.supply, 10)}
+              max={parseInt(asset.quantity, 10)}
               allowMouseWheel
               w="full"
               onChange={(x) => setValue('quantity', x)}
@@ -327,10 +328,10 @@ const OfferFormBid: FC<Props> = (props) => {
                   validate: (value) => {
                     if (
                       parseInt(value, 10) < 1 ||
-                      parseInt(value, 10) > parseInt(props.supply, 10)
+                      parseInt(value, 10) > parseInt(asset.quantity, 10)
                     ) {
                       return t('offer.form.bid.validation.in-range', {
-                        max: parseInt(props.supply, 10),
+                        max: parseInt(asset.quantity, 10),
                       })
                     }
                     if (!/^\d+$/.test(value)) {
@@ -351,7 +352,7 @@ const OfferFormBid: FC<Props> = (props) => {
           <FormHelperText>
             <Text as="p" variant="text" color="gray.500">
               {t('offer.form.bid.supply', {
-                count: parseInt(props.supply, 10),
+                count: parseInt(asset.quantity, 10),
               })}
             </Text>
           </FormHelperText>
@@ -363,7 +364,7 @@ const OfferFormBid: FC<Props> = (props) => {
           <FormLabel htmlFor="expiredAt" m={0}>
             {t('offer.form.bid.expiration.label')}
           </FormLabel>
-          <FormHelperText>
+          <FormHelperText m={0}>
             <Tooltip
               label={
                 <Text as="span" variant="caption" color="brand.black">
@@ -399,38 +400,26 @@ const OfferFormBid: FC<Props> = (props) => {
         )}
       </FormControl>
 
-      <div>
-        <Summary
-          currency={currency}
-          price={priceUnit}
-          quantity={quantityBN}
-          isSingle={!props.multiple}
-          feesOnTopPerTenThousand={feesPerTenThousand}
-        />
-      </div>
+      <Summary
+        currency={currency}
+        price={priceUnit}
+        quantity={quantityBN}
+        isSingle={!isMultiple}
+        feesOnTopPerTenThousand={feesPerTenThousand}
+      />
 
-      {account ? (
-        <>
-          <Balance account={account} currency={currency} />
-          <ButtonWithNetworkSwitch
-            chainId={chainId}
-            isDisabled={!canBid}
-            isLoading={isSubmitting}
-            size="lg"
-            type="submit"
-          >
-            <Text as="span" isTruncated>
-              {t('offer.form.bid.submit')}
-            </Text>
-          </ButtonWithNetworkSwitch>
-        </>
-      ) : (
-        <Button size="lg" type="button" onClick={openConnectModal}>
-          <Text as="span" isTruncated>
-            {t('offer.form.bid.submit')}
-          </Text>
-        </Button>
-      )}
+      {account && <Balance account={account} currency={currency} />}
+      <ConnectButtonWithNetworkSwitch
+        chainId={asset.chainId}
+        isLoading={isSubmitting}
+        isDisabled={!canBid}
+        size="lg"
+        type="submit"
+      >
+        <Text as="span" isTruncated>
+          {t('offer.form.bid.submit')}
+        </Text>
+      </ConnectButtonWithNetworkSwitch>
 
       <CreateOfferModal
         isOpen={createOfferIsOpen}

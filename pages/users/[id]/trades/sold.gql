@@ -10,7 +10,10 @@ query FetchUserTradeSold(
     offset: $offset
     filter: { sellerAddress: { equalTo: $address } }
   ) {
-    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
     nodes {
       transactionHash
       timestamp
@@ -40,6 +43,7 @@ query FetchUserTradeSold(
         tokenId
         name
         image
+        imageMimetype
       }
     }
   }

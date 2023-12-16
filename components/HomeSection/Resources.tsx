@@ -31,15 +31,17 @@ const ResourcesHomeSection: FC<Props> = () => {
 
   return (
     <HomeGridSection
-      isLoading={false}
       items={items}
       itemRender={(item: ItemProps) => (
         <HomeSectionCard
           href={item.href}
           isExternal={item.isExternal}
           image={item.image}
+          // imageRatio={16 / 9}
           title={item.title}
+          // titleIsTruncated={false}
           description={item.description}
+          // descriptionIsTruncated={true}
         />
       )}
       title={t('home.resources')}

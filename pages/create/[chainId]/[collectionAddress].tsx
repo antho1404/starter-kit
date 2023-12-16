@@ -8,43 +8,25 @@ import {
   Text,
   useToast,
 } from '@chakra-ui/react'
-import { BigNumber } from '@ethersproject/bignumber'
-import { useConfig } from '@nft/hooks'
 import { NextPage } from 'next'
 import useTranslation from 'next-translate/useTranslation'
 import Error from 'next/error'
 import { useRouter } from 'next/router'
-import React, { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import Head from '../../../components/Head'
 import BackButton from '../../../components/Navbar/BackButton'
 import SkeletonForm from '../../../components/Skeleton/Form'
 import SkeletonTokenCard from '../../../components/Skeleton/TokenCard'
-import type { Props as NFTCardProps } from '../../../components/Token/Card'
 import TokenCard from '../../../components/Token/Card'
 import type { FormData } from '../../../components/Token/Form/Create'
 import TokenFormCreate from '../../../components/Token/Form/Create'
-import environment from '../../../environment'
 import { useFetchAccountAndCollectionQuery } from '../../../graphql'
 import useAccount from '../../../hooks/useAccount'
-import useBlockExplorer from '../../../hooks/useBlockExplorer'
 import useLocalFileURL from '../../../hooks/useLocalFileURL'
 import useRequiredQueryParamSingle from '../../../hooks/useRequiredQueryParamSingle'
-import useSigner from '../../../hooks/useSigner'
 import SmallLayout from '../../../layouts/small'
-import { values as traits } from '../../../traits'
 
-const Layout = ({ children }: { children: React.ReactNode }) => (
-  <SmallLayout>
-    <Head
-      title="Create Collectible"
-      description="Create Collectible securely stored on blockchain"
-    />
-    {children}
-  </SmallLayout>
-)
-
-const CreatePage: NextPage = ({}) => {
-  const signer = useSigner()
+const CreatePage: NextPage = () => {
   const collectionAddress = useRequiredQueryParamSingle('collectionAddress')
   const chainId = useRequiredQueryParamSingle<number>('chainId', {
     parse: parseInt,
@@ -52,69 +34,59 @@ const CreatePage: NextPage = ({}) => {
   const { t } = useTranslation('templates')
   const { back, push } = useRouter()
   const { address } = useAccount()
-  const { data: config } = useConfig()
   const toast = useToast()
-  const { data, loading, previousData } = useFetchAccountAndCollectionQuery({
+  const { data } = useFetchAccountAndCollectionQuery({
     variables: {
       chainId,
       collectionAddress,
       account: address || '',
     },
   })
-
-  const collection = useMemo(
-    () => data?.collection || previousData?.collection,
-    [data, previousData],
-  )
-
-  const account = useMemo(
-    () => data?.account || previousData?.account,
-    [data, previousData],
-  )
+  const collection = data?.collection
+  const account = data?.account
 
   const [formData, setFormData] = useState<Partial<FormData>>()
 
-  const blockExplorer = useBlockExplorer(chainId)
-  const imageUrlLocal = useLocalFileURL(
-    formData?.isPrivate || formData?.isAnimation
-      ? formData?.preview
-      : formData?.content,
+  const imageLocal = useLocalFileURL(
+    formData?.isAnimation ? formData?.preview : formData?.content,
   )
-  const animationUrlLocal = useLocalFileURL(
-    formData?.isAnimation && !formData.isPrivate ? formData.content : undefined,
+  const animationLocal = useLocalFileURL(
+    formData?.isAnimation ? formData.content : undefined,
   )
 
-  const asset: NFTCardProps['asset'] | undefined = useMemo(() => {
+  const asset = useMemo(() => {
     if (!collection) return
     return {
       id: '--',
-      image: imageUrlLocal || '',
-      animationUrl: animationUrlLocal,
+      image: imageLocal?.url || '',
+      imageMimetype: imageLocal?.mimetype || null,
+      animationUrl: animationLocal?.url || null,
+      animationMimetype: animationLocal?.mimetype || null,
       name: formData?.name || '',
       bestBid: undefined,
       collection: {
         address: collection.address,
         chainId: collection.chainId,
         name: collection.name,
+        standard: collection.standard,
       },
-      owned: BigNumber.from(0),
-      unlockedContent: null,
-    } as NFTCardProps['asset'] // TODO: use satisfies to ensure proper type
-  }, [imageUrlLocal, animationUrlLocal, formData?.name, collection])
+      owned: null,
+      quantity: '1',
+    }
+  }, [imageLocal, animationLocal, formData?.name, collection])
 
   const creator = useMemo(
     () => ({
       address: account?.address || '0x',
-      image: account?.image || undefined,
-      name: account?.name || undefined,
-      verified: account?.verification?.status === 'VALIDATED',
+      image: account?.image || null,
+      name: account?.name || null,
+      verification: account?.verification
+        ? {
+            status: account?.verification?.status,
+          }
+        : null,
     }),
     [account],
-  )
-
-  const categories = useMemo(
-    () => (traits['Category'] || []).map((x) => ({ id: x, title: x })) || [],
-    [],
   )
 
   const onCreated = useCallback(
@@ -128,9 +100,13 @@ const CreatePage: NextPage = ({}) => {
     [push, t, toast],
   )
 
-  if (!loading && !collection) return <Error statusCode={404} />
+  if (collection === null) return <Error statusCode={404} />
   return (
-    <Layout>
+    <SmallLayout>
+      <Head
+        title="Create Collectible"
+        description="Create Collectible securely stored on blockchain"
+      />
       <BackButton onClick={back} />
       <Heading as="h1" variant="title" color="brand.black" mt={6}>
         {!collection ? (
@@ -157,12 +133,13 @@ const CreatePage: NextPage = ({}) => {
               <SkeletonTokenCard />
             ) : (
               <TokenCard
-                asset={asset}
-                creator={creator}
-                auction={undefined}
-                sale={undefined}
-                numberOfSales={0}
-                hasMultiCurrency={false}
+                asset={{
+                  ...asset,
+                  creator,
+                  bestBid: { nodes: [] },
+                  auctions: undefined,
+                  firstSale: undefined,
+                }}
               />
             )}
           </Box>
@@ -172,24 +149,14 @@ const CreatePage: NextPage = ({}) => {
             <SkeletonForm items={4} />
           ) : (
             <TokenFormCreate
-              signer={signer}
               collection={collection}
-              categories={categories}
-              uploadUrl={`${
-                process.env.NEXT_PUBLIC_LITEFLOW_BASE_URL ||
-                'https://api.liteflow.com'
-              }/${environment.LITEFLOW_API_KEY}/uploadToIPFS`}
-              blockExplorer={blockExplorer}
               onCreated={onCreated}
               onInputChange={setFormData}
-              activateUnlockableContent={config?.hasUnlockableContent || false}
-              maxRoyalties={environment.MAX_ROYALTIES}
-              activateLazyMint={config?.hasLazyMint || false}
             />
           )}
         </GridItem>
       </Grid>
-    </Layout>
+    </SmallLayout>
   )
 }
 

@@ -6,6 +6,13 @@
       "edit-profile": "编辑个人资料"
     }
   },
+  "network": {
+    "button": {
+      "sign-in": "登录",
+      "signing-in": "登录中...",
+      "switch-network": "交换网络"
+    }
+  },
   "bid": {
     "list": {
       "none": "无出价"
@@ -57,9 +64,65 @@
   },
   "countdown": {
     "day": "{{value}} 天",
+    "day-long": "天",
     "hour": "{{value}} 小时",
+    "hour-long": "小时",
     "min": "{{value}} 分钟",
-    "sec": "{{value}} 秒"
+    "min-long": "分钟",
+    "sec": "{{value}} 秒",
+    "sec-long": "秒"
+  },
+  "drop": {
+    "timeline": {
+      "upcoming": "Upcoming",
+      "in-progress": "In progress",
+      "ended": "Ended"
+    },
+    "by": "By {{address}}",
+    "supply": {
+      "available_one": "<0/> item",
+      "available_other": "<0/> items",
+      "infinite": "Open edition"
+    },
+    "progress": {
+      "percentage": "{{percentage}}% minted",
+      "minted": "Minted"
+    },
+    "listItem": {
+      "price": "Price: <0/>",
+      "startDate": "Starts: {{startDate}}",
+      "endDate": "Ends: {{endDate}}",
+      "supply": "Supply: {{supply}}",
+      "maxQuantityPerWallet": "Mint limit: {{maxQuantityPerWallet}} per wallet",
+      "eligible": "Eligible",
+      "notEligible": "Not eligible"
+    },
+    "form": {
+      "ended": {
+        "title": "Mint ended",
+        "minted": "Minted:",
+        "totalMinted": "{{totalMinted}} items",
+        "viewCollection": "View collection"
+      },
+      "in-progress": {
+        "price": "Price:",
+        "supply": "Supply:",
+        "mintLimit": "Mint limit:",
+        "limit": "{{maxQuantityPerWallet}} per wallet",
+        "mintedOut": "Minted out",
+        "mint": "Mint",
+        "notEligible": "You're not eligible for this mint stage",
+        "endsIn": "Ends in <0/>"
+      },
+      "upcoming": {
+        "price": "Price:",
+        "supply": "Supply:",
+        "mintLimit": "Mint limit:",
+        "limit": "{{maxQuantityPerWallet}} per wallet",
+        "disabled": "Minting soon",
+        "startsIn": "Starts in <0/>"
+      }
+    }
   },
   "dropzone": {
     "required": "此字段为必填字段",
@@ -72,8 +135,20 @@
       "clear": "清除过滤器"
     },
     "collections": {
+      "more": "装载更多",
       "chains": {
         "label": "链"
+      },
+      "empty": {
+        "title": "未找到收藏",
+        "description": "请更新筛选条件来查找更多收藏。"
+      }
+    },
+    "traits": {
+      "more": "装载更多",
+      "empty": {
+        "title": "未发现特征",
+        "description": "更新您的过滤器以发现更多特征。"
       }
     },
     "assets": {
@@ -119,7 +194,7 @@
       },
       "properties": {
         "label": "性能",
-        "labelWithCollection": "集合和属性",
+        "labelWithCollection": "收藏",
         "search": {
           "placeholder": "筛选器属性"
         }
@@ -131,6 +206,15 @@
   },
   "history": {
     "none": "无历史记录",
+    "filter": {
+      "all": "全部",
+      "lazymint": "懒人铸造",
+      "listing": "上架",
+      "purchase": "购买",
+      "transfer": "转让",
+      "mint": "铸造",
+      "burn": "烧毁"
+    },
     "listing": {
       "by": "截至 <0/>",
       "listed_one": "已上架 <0>{{count}}</0> 个版本，价格为 <1/>",
@@ -155,6 +239,11 @@
       "from": "从 <0/> 至 <1/>",
       "purchased_one": "已购买 <0>{{count}}</0> 个版本，价格为 <1/>",
       "purchased_other": "已购买 <0>{{count}}</0> 个版本，单价为 <1/>"
+    },
+    "burn": {
+      "quantity_one": "{{count}} 版本已烧毁",
+      "purchased_other": "{{count}} 个版本已烧毁",
+      "by": "截至 {{user}}"
     }
   },
   "modal": {
@@ -330,6 +419,25 @@
         }
       }
     },
+    "drop": {
+      "title": "Mint",
+      "description": "Confirm transaction in your wallet to continue, this action will cost you gas fees.",
+      "action": "View on {{name}}",
+      "transaction": {
+        "signature": {
+          "title": "Your confirmation is required",
+          "description": "Open and confirm transaction in your wallet"
+        },
+        "pending": {
+          "title": "Confirmation is pending",
+          "description": "0/2 completed - Transaction is pending on Blockchain"
+        },
+        "ownership": {
+          "title": "Confirmation is pending",
+          "description": "1/2 completed - Ownership is being checked"
+        }
+      }
+    },
     "login": {
       "title": "使用钱包登录",
       "description": "使用以下选项之一进行连接。",
@@ -341,8 +449,9 @@
     "open-menu": "打开主菜单",
     "open-activity": "打开活动菜单",
     "explore": "浏览",
+    "drops": "滴",
     "create": "创建",
-    "search": "搜索",
+    "search": "搜索 NFT、集合或账户",
     "sign-in": "登录",
     "chat": "讯息",
     "signing-in": "登录中...",
@@ -484,6 +593,9 @@
       }
     }
   },
+  "pagination": {
+    "label": "每页结果数"
+  },
   "referral": {
     "form": {
       "connect": "登录以生成您的推荐链接",
@@ -545,37 +657,6 @@
         "no-bids": "还没有出价",
         "view": "查看我的 NFT",
         "ongoing-auction": "正在进行的拍卖"
-      },
-      "form": {
-        "submit": "创建要约",
-        "validation": {
-          "required": "此字段为必填字段",
-          "decimals": "此字段最多支持 {{ nbDecimals }} 个小数",
-          "positive": "此字段必须大于 0"
-        },
-        "currency": {
-          "label": "货币",
-          "hint": "设置拍卖时买家可以提交出价的货币",
-          "placeholder": "选择货币"
-        },
-        "price": {
-          "label": "底价",
-          "hint": "设置具体金额，出价如低于此价格则不会赢得拍卖",
-          "placeholder": "输入底价",
-          "info": "（可选）"
-        },
-        "start": {
-          "label": "开始日期",
-          "placeholder": "立即"
-        },
-        "end": {
-          "label": "结束日期"
-        },
-        "banner": {
-          "title": "拍卖规则",
-          "item1": "拍卖开始后，您就不能再取消售卖。这是为了给平台用户提供公平体验。",
-          "item2": "有效期：为防止长期售卖或遗忘，您的拍卖及其出价将在所选结束日期后取消 {{validity}}。您始终可以在有效期结束后重新创建售卖。"
-        }
       },
       "info": {
         "title": "确认售出",
@@ -751,11 +832,6 @@
         "category": {
           "label": "类别",
           "placeholder": "选择类别"
-        },
-        "unlockable": {
-          "label": "可解锁内容",
-          "hint": "(可选)",
-          "choice": "项目内容只能由项目所有者解锁"
         }
       }
     },
@@ -792,6 +868,7 @@
     "percent": "{{value}}%"
   },
   "truncate": {
+    "show-less": "显示更少",
     "show-more": "显示更多"
   },
   "user": {

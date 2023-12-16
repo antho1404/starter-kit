@@ -3,8 +3,6 @@ import {
   Box,
   Center,
   Flex,
-  FormControl,
-  FormLabel,
   Heading,
   Icon,
   IconButton,
@@ -15,52 +13,40 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
-  Switch,
   Tab,
   TabList,
   Tabs,
   Text,
-  Tooltip,
+  VStack,
   useToast,
 } from '@chakra-ui/react'
 import { BigNumber } from '@ethersproject/bignumber'
-import { FaInfoCircle } from '@react-icons/all-files/fa/FaInfoCircle'
+import { useAuctionStatus } from '@liteflow/react'
 import { HiOutlineDotsHorizontal } from '@react-icons/all-files/hi/HiOutlineDotsHorizontal'
-import linkify from 'components/Linkify/Linkify'
 import useRefreshAsset from 'hooks/useRefreshAsset'
 import { NextPage } from 'next'
 import useTranslation from 'next-translate/useTranslation'
 import Error from 'next/error'
 import { useRouter } from 'next/router'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import invariant from 'ts-invariant'
 import BidList from '../../../components/Bid/BidList'
 import Head from '../../../components/Head'
 import HistoryList from '../../../components/History/HistoryList'
 import Image from '../../../components/Image/Image'
 import Link from '../../../components/Link/Link'
+import MarkdownViewer from '../../../components/MarkdownViewer'
 import SaleDetail from '../../../components/Sales/Detail'
 import SkeletonProperty from '../../../components/Skeleton/Property'
 import TokenMedia from '../../../components/Token/Media'
 import TokenMetadata from '../../../components/Token/Metadata'
 import TraitList from '../../../components/Trait/TraitList'
-import { chains } from '../../../connectors'
-import {
-  convertAuctionFull,
-  convertBidFull,
-  convertOwnership,
-  convertSaleFull,
-  convertTraits,
-  convertUser,
-} from '../../../convert'
-import environment from '../../../environment'
 import { useFetchAssetQuery } from '../../../graphql'
 import useAccount from '../../../hooks/useAccount'
 import useBlockExplorer from '../../../hooks/useBlockExplorer'
-import useChainCurrencies from '../../../hooks/useChainCurrencies'
-import useNow from '../../../hooks/useNow'
+import useDetectAssetMedia from '../../../hooks/useDetectAssetMedia'
+import useEnvironment from '../../../hooks/useEnvironment'
 import useRequiredQueryParamSingle from '../../../hooks/useRequiredQueryParamSingle'
-import useSigner from '../../../hooks/useSigner'
 import LargeLayout from '../../../layouts/large'
 import { formatError } from '../../../utils'
 
@@ -76,12 +62,11 @@ enum AssetTabs {
 const tabs = [AssetTabs.bids, AssetTabs.history]
 
 const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
-  const signer = useSigner()
+  const { CHAINS, REPORT_EMAIL } = useEnvironment()
   const { t } = useTranslation('templates')
   const toast = useToast()
   const { address } = useAccount()
   const { query, replace } = useRouter()
-  const [showPreview, setShowPreview] = useState(false)
   const assetId = useRequiredQueryParamSingle('id')
   const [_chainId, collectionAddress, tokenId] = assetId.split('-')
   invariant(_chainId, 'chainId is required')
@@ -90,7 +75,7 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
   const chainId = parseInt(_chainId, 10)
 
   const date = useMemo(() => new Date(nowProp), [nowProp])
-  const { data, refetch, loading, previousData } = useFetchAssetQuery({
+  const { data, refetch } = useFetchAssetQuery({
     variables: {
       chainId,
       collectionAddress,
@@ -99,35 +84,27 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
       address: address || '',
     },
   })
-  const chainCurrency = useChainCurrencies(chainId, { onlyERC20: true })
+  const asset = data?.asset
+  const auction = asset?.auctions.nodes[0]
+  const bestAuctionBid = auction?.bestBid?.nodes[0]
 
-  const asset = useMemo(
-    () => data?.asset || previousData?.asset,
-    [data, previousData],
-  )
+  const { isValid } = useAuctionStatus(auction, bestAuctionBid)
+
+  const media = useDetectAssetMedia(asset)
 
   const blockExplorer = useBlockExplorer(chainId)
 
-  const totalOwned = useMemo(
-    () => BigNumber.from(asset?.owned?.quantity || 0),
-    [asset],
+  const isOwner = useMemo(
+    () => BigNumber.from(asset?.owned?.quantity || 0).gt('0'),
+    [asset?.owned?.quantity],
   )
 
-  const isOwner = useMemo(() => totalOwned.gt('0'), [totalOwned])
-  const ownAllSupply = useMemo(
-    () => totalOwned.gte(BigNumber.from(asset?.quantity || '0')),
-    [asset, totalOwned],
+  const chain = useMemo(
+    () => CHAINS.find((x) => x.id === chainId),
+    [CHAINS, chainId],
   )
-  const isSingle = useMemo(
-    () => asset?.collection.standard === 'ERC721',
-    [asset],
-  )
-  const chain = useMemo(() => chains.find((x) => x.id === chainId), [chainId])
 
-  const traits = useMemo(
-    () => asset && asset.traits.nodes.length > 0 && convertTraits(asset),
-    [asset],
-  )
+  const traits = asset && asset.traits.nodes.length > 0 && asset.traits.nodes
 
   const tabIndex = useMemo(
     () => (query.filter ? tabs.findIndex((tab) => tab === query.filter) : 0),
@@ -139,42 +116,15 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
     [blockExplorer, collectionAddress, tokenId],
   )
 
-  const now = useNow()
-  const auction = useMemo(() => {
-    const first = asset?.auctions.nodes[0]
-    if (!first) return
-    const auction = convertAuctionFull(first)
-    if (!auction) return
-    // check if auction is expired
-    if (new Date(auction.expireAt) <= now) return
-    // check if auction has a winning offer
-    if (!!auction.winningOffer?.id) return
-    return auction
-  }, [asset, now])
-
-  const directSales = useMemo(
-    () => asset?.sales.nodes.map(convertSaleFull) || [],
-    [asset],
-  )
-
-  const bestBid = useMemo(
-    () => asset?.auctions.nodes[0]?.offers.nodes.map(convertBidFull)[0],
-    [asset],
-  )
-
-  const creator = useMemo(
-    () =>
-      asset ? convertUser(asset.creator, asset.creator.address) : undefined,
-    [asset],
-  )
-
-  const owners = useMemo(
-    () => asset?.ownerships.nodes.map(convertOwnership) || [],
-    [asset],
+  const bids = useMemo(
+    () => (auction && isValid ? auction.bestBid.nodes : asset?.bids.nodes),
+    [asset?.bids.nodes, auction, isValid],
   )
 
   const refresh = useCallback(async () => {
-    await refetch()
+    await refetch({
+      now: new Date(),
+    })
   }, [refetch])
 
   const refreshAsset = useRefreshAsset()
@@ -182,7 +132,7 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
     async (assetId: string) => {
       try {
         await refreshAsset(assetId)
-        await refetch()
+        await refresh()
         toast({
           title: 'Successfully refreshed metadata',
           status: 'success',
@@ -194,14 +144,14 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
         })
       }
     },
-    [refetch, refreshAsset, toast],
+    [refresh, refreshAsset, toast],
   )
 
-  if (!loading && !asset) return <Error statusCode={404} />
+  if (asset === null) return <Error statusCode={404} />
   return (
     <LargeLayout>
       <Head
-        title={asset?.name || ''}
+        title={asset ? `${asset.name} - ${asset.collection.name}` : undefined}
         description={asset?.description}
         image={asset?.image}
       />
@@ -217,11 +167,7 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
               <Skeleton width="100%" height="100%" />
             ) : (
               <TokenMedia
-                imageUrl={asset.image}
-                animationUrl={asset.animationUrl}
-                unlockedContent={
-                  showPreview ? undefined : asset.unlockedContent
-                }
+                {...media}
                 defaultText={asset.name}
                 controls
                 sizes="
@@ -229,61 +175,6 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
               (min-width: 48em) 50vw,
               100vw"
               />
-            )}
-            {asset && asset.hasUnlockableContent && (
-              <Flex
-                w="full"
-                mt={3}
-                direction={{ base: 'column', lg: 'row' }}
-                justify={{
-                  base: 'center',
-                  lg: isOwner ? 'space-between' : 'center',
-                }}
-                align="center"
-                gap={4}
-              >
-                <Flex align="center" gap={1.5}>
-                  <Heading as="h3" variant="heading3" color="brand.black">
-                    {t('asset.detail.unlockable.title')}
-                  </Heading>
-                  <Tooltip
-                    label={
-                      <Text as="span" variant="caption" color="brand.black">
-                        {t('asset.detail.unlockable.tooltip')}
-                      </Text>
-                    }
-                    placement="top"
-                    rounded="xl"
-                    shadow="lg"
-                    p={3}
-                    bg="white"
-                  >
-                    <span>
-                      <Icon
-                        as={FaInfoCircle}
-                        color="gray.400"
-                        h={4}
-                        w={4}
-                        cursor="pointer"
-                      />
-                    </span>
-                  </Tooltip>
-                </Flex>
-                {isOwner && (
-                  <Flex as={FormControl} w="auto" align="center">
-                    <FormLabel mb={0} htmlFor="show-preview">
-                      <Heading as="h3" variant="heading3" color="brand.black">
-                        {t('asset.detail.show-preview')}
-                      </Heading>
-                    </FormLabel>
-                    <Switch
-                      id="show-preview"
-                      isChecked={showPreview}
-                      onChange={(event) => setShowPreview(event.target.checked)}
-                    />
-                  </Flex>
-                )}
-              </Flex>
             )}
           </Center>
         </AspectRatio>
@@ -326,9 +217,7 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                       {t('asset.detail.menu.refresh-metadata')}
                     </MenuItem>
                     <Link
-                      href={`mailto:${
-                        environment.REPORT_EMAIL
-                      }?subject=${encodeURI(
+                      href={`mailto:${REPORT_EMAIL}?subject=${encodeURI(
                         t('asset.detail.menu.report.subject'),
                       )}&body=${encodeURI(
                         t('asset.detail.menu.report.body', asset),
@@ -346,37 +235,18 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
           {!asset ? (
             <SkeletonProperty items={3} />
           ) : (
-            <TokenMetadata
-              assetId={asset.id}
-              creator={creator}
-              owners={owners}
-              numberOfOwners={asset.ownerships.totalCount}
-              saleSupply={BigNumber.from(asset.sales.totalAvailableQuantitySum)}
-              standard={asset.collection.standard}
-              totalSupply={BigNumber.from(asset.quantity)}
-              isOpenCollection={asset.collection.mintType === 'PUBLIC'}
-            />
+            <TokenMetadata asset={asset} />
           )}
-          {!asset ? (
+          {!asset || !data?.currencies?.nodes ? (
             <>
               <SkeletonProperty items={1} />
               <Skeleton height="40px" width="100%" />
             </>
           ) : (
             <SaleDetail
-              assetId={asset.id}
-              chainId={chainId}
-              blockExplorer={blockExplorer}
-              currencies={chainCurrency.data?.currencies?.nodes || []}
-              signer={signer}
-              currentAccount={address}
-              isSingle={isSingle}
+              asset={asset}
+              currencies={data.currencies?.nodes}
               isHomepage={false}
-              isOwner={isOwner}
-              auction={auction}
-              bestBid={bestBid}
-              directSales={directSales}
-              ownAllSupply={ownAllSupply}
               onOfferCanceled={refresh}
               onAuctionAccepted={refresh}
             />
@@ -391,14 +261,14 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                   <Heading as="h4" variant="heading2" color="brand.black">
                     {t('asset.detail.description')}
                   </Heading>
-                  <Stack borderRadius="2xl" p={3} borderWidth="1px" mt={4}>
+                  <Stack borderRadius="2xl" p={3} borderWidth="1px">
                     <Text
-                      as="p"
+                      as="div"
                       variant="text-sm"
                       color="gray.500"
                       whiteSpace="pre-wrap"
                     >
-                      {linkify(asset.description)}
+                      <MarkdownViewer source={asset.description} />
                     </Text>
                   </Stack>
                 </Stack>
@@ -413,7 +283,6 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                   borderRadius="2xl"
                   p={3}
                   borderWidth="1px"
-                  mt={8}
                   align="flex-start"
                   spacing={3}
                 >
@@ -426,6 +295,8 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                       alt={chainId.toString()}
                       width={20}
                       height={20}
+                      w={5}
+                      h={5}
                     />
                     <Text variant="subtitle2" ml={1}>
                       {chain?.name}
@@ -478,30 +349,24 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                     {t('asset.detail.traits')}
                   </Heading>
                   <Box borderRadius="2xl" p={3} borderWidth="1px">
-                    <TraitList
-                      chainId={chainId}
-                      collectionAddress={collectionAddress}
-                      traits={traits}
-                    />
+                    <TraitList asset={asset} traits={traits} />
                   </Box>
                 </Stack>
               )}
             </Stack>
 
-            <div>
+            <Box overflow="hidden">
               <Tabs
                 isManual
                 index={tabIndex}
                 colorScheme="brand"
                 overflowX="auto"
-                overflowY="hidden"
               >
-                <TabList>
+                <TabList gap={4}>
                   {tabs.map((tab) => (
                     <Tab
                       key={tab}
                       as={Link}
-                      whiteSpace="nowrap"
                       href={`/tokens/${assetId}?filter=${tab}`}
                       onClick={(e) => {
                         e.preventDefault()
@@ -513,6 +378,7 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                           },
                         )
                       }}
+                      whiteSpace="nowrap"
                     >
                       <Text as="span" variant="subtitle1">
                         {t(`asset.detail.tabs.${tab}`)}
@@ -521,21 +387,14 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                   ))}
                 </TabList>
               </Tabs>
-              <Box h={96} overflowY="auto" py={6}>
+              <VStack alignItems="flex-start" spacing={3} py={6} w="full">
                 {(!query.filter || query.filter === AssetTabs.bids) && (
                   <BidList
-                    now={date}
-                    chainId={chainId}
-                    collectionAddress={collectionAddress}
-                    tokenId={tokenId}
-                    auctionId={auction?.id}
-                    signer={signer}
-                    account={address}
-                    isSingle={isSingle}
+                    asset={asset}
+                    bids={bids}
                     preventAcceptation={!isOwner || !!auction}
                     onAccepted={refresh}
                     onCanceled={refresh}
-                    totalOwned={totalOwned}
                   />
                 )}
                 {query.filter === AssetTabs.history && (
@@ -545,8 +404,8 @@ const DetailPage: NextPage<Props> = ({ now: nowProp }) => {
                     tokenId={tokenId}
                   />
                 )}
-              </Box>
-            </div>
+              </VStack>
+            </Box>
           </>
         )}
       </SimpleGrid>

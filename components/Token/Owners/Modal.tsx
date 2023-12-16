@@ -13,57 +13,76 @@ import {
   Text,
   useDisclosure,
 } from '@chakra-ui/react'
-import Trans from 'next-translate/Trans'
 import useTranslation from 'next-translate/useTranslation'
-import { useEffect, useState, VFC } from 'react'
-import { convertOwnership } from '../../../convert'
-import { useFetchOwnersQuery } from '../../../graphql'
+import { FC, useCallback, useState } from 'react'
+import {
+  AccountVerificationStatus,
+  useFetchOwnersLazyQuery,
+} from '../../../graphql'
 import List, { ListItem } from '../../List/List'
 import Pagination from '../../Pagination/Pagination'
 import OwnersModalActivator from './ModalActivator'
 import OwnersModalItem from './ModalItem'
 
 export type Props = {
-  assetId: string
-  ownersPreview: {
-    address: string
-    image: string | null | undefined
-    name: string | null | undefined
-    verified: boolean
-    quantity: string
-  }[]
-  numberOfOwners: number
+  asset: {
+    chainId: number
+    collectionAddress: string
+    tokenId: string
+    ownerships: {
+      totalCount: number
+      nodes: {
+        ownerAddress: string
+        quantity: string
+        owner: {
+          address: string
+          name: string | null
+          image: string | null
+          verification: {
+            status: AccountVerificationStatus
+          } | null
+        }
+      }[]
+    }
+  }
 }
 
 const OwnerPaginationLimit = 8
 
-const OwnersModal: VFC<Props> = ({
-  assetId,
-  ownersPreview,
-  numberOfOwners,
-}) => {
+const OwnersModal: FC<Props> = ({ asset }) => {
   const { t } = useTranslation('components')
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [page, setPage] = useState(1)
-  const { data, loading, previousData } = useFetchOwnersQuery({
+
+  const [fetch, { data }] = useFetchOwnersLazyQuery({
     variables: {
-      assetId,
+      chainId: asset.chainId,
+      collectionAddress: asset.collectionAddress,
+      tokenId: asset.tokenId,
       limit: OwnerPaginationLimit,
       offset: (page - 1) * OwnerPaginationLimit,
     },
   })
-  // Reset pagination when the limit change or the modal visibility changes
-  useEffect(() => setPage(1), [isOpen])
+
+  const openOwners = useCallback(async () => {
+    onOpen()
+    await fetch()
+  }, [fetch, onOpen])
+
+  const closeOwners = useCallback(() => {
+    onClose()
+    setPage(1)
+  }, [onClose])
+
   return (
     <>
       <OwnersModalActivator
-        owners={ownersPreview}
-        numberOfOwners={numberOfOwners}
-        onClick={onOpen}
+        ownerships={asset.ownerships}
+        onClick={openOwners}
       />
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={closeOwners}
         isCentered
         size="xl"
         scrollBehavior="inside"
@@ -84,7 +103,7 @@ const OwnersModal: VFC<Props> = ({
                 px={2.5}
               >
                 <Text as="span" variant="caption" color="brand.500">
-                  {numberOfOwners}
+                  {asset.ownerships.totalCount}
                 </Text>
               </Flex>
             </Flex>
@@ -95,7 +114,7 @@ const OwnersModal: VFC<Props> = ({
             minHeight={{ base: '', md: 'lg' }}
           >
             <List>
-              {loading
+              {!data
                 ? new Array(OwnerPaginationLimit)
                     .fill(0)
                     .map((_, index) => (
@@ -105,39 +124,22 @@ const OwnersModal: VFC<Props> = ({
                         label={<SkeletonText noOfLines={2} width="32" />}
                       />
                     ))
-                : data?.ownerships?.nodes
-                    .map(convertOwnership)
-                    .map((owner) => (
-                      <OwnersModalItem key={owner.address} {...owner} />
-                    ))}
+                : data.ownerships?.nodes.map((ownership) => (
+                    <OwnersModalItem
+                      key={ownership.ownerAddress}
+                      ownership={ownership}
+                    />
+                  ))}
             </List>
           </ModalBody>
           <ModalFooter>
             <Box pt="4">
               <Pagination
-                limit={OwnerPaginationLimit}
                 page={page}
-                total={
-                  data?.ownerships?.totalCount ||
-                  previousData?.ownerships?.totalCount
-                }
                 onPageChange={setPage}
-                hideSelectors
-                result={{
-                  label: t('pagination.result.label'),
-                  caption: (props) => (
-                    <Trans
-                      ns="templates"
-                      i18nKey="pagination.result.caption"
-                      values={props}
-                      components={[
-                        <Text as="span" color="brand.black" key="text" />,
-                      ]}
-                    />
-                  ),
-                  pages: (props) =>
-                    t('pagination.result.pages', { count: props.total }),
-                }}
+                hasNextPage={data?.ownerships?.pageInfo.hasNextPage}
+                hasPreviousPage={data?.ownerships?.pageInfo.hasPreviousPage}
+                withoutLimit
               />
             </Box>
           </ModalFooter>

@@ -7,12 +7,15 @@ query FetchAllERC721And1155(
   $filter: [AssetFilter!]
 ) {
   assets(
-    filter: { ownershipsExist: true, and: $filter }
+    filter: { quantity: { greaterThan: "0" }, and: $filter }
     first: $limit
     offset: $offset
     orderBy: $orderBy
   ) {
-    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
     nodes {
       id
       chainId
@@ -23,16 +26,14 @@ query FetchAllERC721And1155(
         chainId
         address
         name
+        standard
       }
       image
-      unlockedContent {
-        url
-        mimetype
-      }
-      animationUrl
+      imageMimetype
       owned: ownership(ownerAddress: $address) {
         quantity
       }
+      quantity
       auctions(
         first: 1
         orderBy: CREATED_AT_DESC

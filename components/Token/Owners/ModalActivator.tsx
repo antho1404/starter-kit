@@ -1,24 +1,26 @@
 import { Flex, Text } from '@chakra-ui/react'
-import { ButtonHTMLAttributes, VFC } from 'react'
+import { ButtonHTMLAttributes, FC } from 'react'
 import AccountImage from '../../Wallet/Image'
 
 export type Props = ButtonHTMLAttributes<any> & {
-  owners: {
-    address: string
-    image: string | null | undefined
-    name: string | null | undefined
-  }[]
-  numberOfOwners: number
+  ownerships: {
+    totalCount: number
+    nodes: {
+      owner: {
+        address: string
+        name: string | null
+        image: string | null
+      }
+    }[]
+  }
 }
 
-const OwnersModalActivator: VFC<Props> = ({
-  owners,
-  numberOfOwners,
-  ...props
-}) => {
+const OwnersModalActivator: FC<Props> = ({ ownerships, ...props }) => {
+  const numberOfOwners = ownerships.totalCount
+  const owners = ownerships.nodes
   return (
     <Flex as="button" {...props}>
-      {owners.slice(0, 4).map(({ address, image, name }, index) => (
+      {owners.slice(0, 4).map(({ owner: { address, image, name } }, index) => (
         <Flex
           key={address}
           ml={index !== 0 ? -3 : undefined}
@@ -34,11 +36,11 @@ const OwnersModalActivator: VFC<Props> = ({
         </Flex>
       ))}
       {numberOfOwners === 5 && owners[4] && (
-        <Flex ml={-3} title={owners[4].name ? owners[4].name : ''}>
+        <Flex ml={-3} title={owners[4].owner.name ? owners[4].owner.name : ''}>
           <Flex
             as={AccountImage}
-            address={owners[4].address}
-            image={owners[4].image}
+            address={owners[4].owner.address}
+            image={owners[4].owner.image}
             rounded="full"
           />
         </Flex>
@@ -54,7 +56,7 @@ const OwnersModalActivator: VFC<Props> = ({
             bgColor="brand.50"
           >
             <Text as="span" variant="caption" color="brand.500">
-              {`+${numberOfOwners >= 103 ? 99 : owners.length - 4}`}
+              {`+${numberOfOwners >= 103 ? 99 : numberOfOwners - 4}`}
             </Text>
           </Flex>
         </Flex>

@@ -1,6 +1,15 @@
 {
   "error": {
-    "500": "We're sorry, something went wrong."
+    "404": {
+      "title": "Data Not Found",
+      "description": "Oops! We couldn't find the data you're looking for on our server. If the issue persists, feel free to contact our support team for assistance."
+    },
+    "500": {
+      "short": "We're sorry, something went wrong.",
+      "title": "Internal Server Error",
+      "description": "Oops! We encountered an unexpected issue on our server. If the issue persists, feel free to contact our support team for assistance."
+    },
+    "button": "Contact support"
   },
   "home": {
     "collections": {
@@ -34,6 +43,8 @@
       "orderBy": {
         "label": "Sort by",
         "values": {
+          "priceAsc": "Price: Low - High",
+          "priceDesc": "Price: High - Low",
           "createdAtDesc": "Date: Newest",
           "createdAtAsc": "Date: Oldest"
         }
@@ -69,6 +80,15 @@
       }
     }
   },
+  "drops": {
+    "title": "Drops",
+    "empty": {
+      "title": "Do your drop on the platform?",
+      "description": "Contact the support to create your first drop on the platform!",
+      "action": "Contact support"
+    },
+    "past-drops": "Past Drops"
+  },
   "collection": {
     "filter": "Filters",
     "card": {
@@ -90,8 +110,8 @@
     },
     "orderBy": {
       "values": {
-        "salesMinUnitPriceInRefAsc": "Price: Low - High",
-        "salesMinUnitPriceInRefDesc": "Price: High - Low",
+        "priceAsc": "Price: Low - High",
+        "priceDesc": "Price: High - Low",
         "createdAtDesc": "Date: Newest",
         "createdAtAsc": "Date: Oldest"
       }
@@ -103,10 +123,6 @@
   },
   "asset": {
     "detail": {
-      "unlockable": {
-        "title": "Unlockable content",
-        "tooltip": "The item's content can only be unlocked by the owner of the item"
-      },
       "show-preview": "Show preview",
       "description": "Description",
       "traits": "Traits",
@@ -122,6 +138,7 @@
         },
         "refresh-metadata": "Refresh Metadata"
       },
+      "supply": "X{{supply}}",
       "details": {
         "title": "Details",
         "chain": "Chain",
@@ -222,26 +239,7 @@
       "title": "NFT Offer",
       "notifications": {
         "created": "Your offer has been successfully created."
-      },
-      "options": {
-        "label": "Type of offer",
-        "hints": {
-          "fixed": "Enter price to allow users instantly purchase your NFT",
-          "auction": "Set a period of time for which buyers can place bids"
-        },
-        "values": {
-          "fixed": "Fixed price",
-          "auction": "Timed auction"
-        }
       }
-    }
-  },
-  "pagination": {
-    "result": {
-      "label": "Results per page",
-      "caption": "<0>{{from}}</0> - <0>{{to}}</0> of <0>{{total}}</0> results",
-      "pages_one": "of {{count}} page",
-      "pages_other": "of {{count}} pages"
     }
   },
   "user": {
@@ -318,8 +316,10 @@
         "accepted": "Bid accepted"
       },
       "actions": {
-        "accept": "Accept"
+        "accept": "Accept",
+        "view": "View NFT"
       },
+      "auction": "Auction",
       "orderBy": {
         "label": "Sort by",
         "values": {

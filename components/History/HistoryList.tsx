@@ -1,11 +1,19 @@
 import { Text } from '@chakra-ui/react'
+import BurnListItem from 'components/History/ListItem/BurnListItem'
 import useTranslation from 'next-translate/useTranslation'
-import { useMemo, VFC } from 'react'
+import { FC, useCallback, useMemo, useState } from 'react'
 import invariant from 'ts-invariant'
-import { convertHistories } from '../../convert'
-import { useFetchAssetHistoryQuery } from '../../graphql'
+import {
+  AssetHistoryAction,
+  FetchAssetHistoryQuery,
+  useFetchAssetHistoryQuery,
+} from '../../graphql'
 import useBlockExplorer from '../../hooks/useBlockExplorer'
+import HistoryListFilter, {
+  DEFAULT_HISTORY_FILTER,
+} from '../History/HistoryListFilter'
 import List from '../List/List'
+import Pagination from '../Pagination/Pagination'
 import SkeletonList from '../Skeleton/List'
 import SkeletonListItem from '../Skeleton/ListItem'
 import {
@@ -20,37 +28,48 @@ type IProps = {
   chainId: number
   collectionAddress: string
   tokenId: string
+  filter?: AssetHistoryAction[]
 }
 
-const HistoryList: VFC<IProps> = ({ chainId, collectionAddress, tokenId }) => {
-  const { t } = useTranslation('components')
+const LIMIT = 5
 
-  const { data, loading, previousData } = useFetchAssetHistoryQuery({
+const HistoryList: FC<IProps> = ({ chainId, collectionAddress, tokenId }) => {
+  const { t } = useTranslation('components')
+  const blockExplorer = useBlockExplorer(chainId)
+  const [filter, setFilter] = useState<AssetHistoryAction[]>(
+    DEFAULT_HISTORY_FILTER,
+  )
+
+  const [page, setPage] = useState(1)
+  const offset = useMemo(() => (page - 1) * LIMIT, [page])
+  const onFilterChange = useCallback((filter: AssetHistoryAction[]) => {
+    setPage(1)
+    setFilter(filter)
+  }, [])
+
+  const { data: historyData } = useFetchAssetHistoryQuery({
     variables: {
       chainId,
       collectionAddress,
       tokenId,
+      limit: LIMIT,
+      offset,
+      filter,
     },
   })
-  const historyData = useMemo(() => data || previousData, [data, previousData])
-  const blockExplorer = useBlockExplorer(chainId)
+  const histories = historyData?.asset?.histories.nodes
 
-  const histories = useMemo(
-    () => (historyData?.asset?.histories.nodes || []).map(convertHistories),
-    [historyData],
-  )
-
-  const ListItem = (history: typeof histories[number], i: number) => {
+  const ListItem = (
+    history: NonNullable<
+      FetchAssetHistoryQuery['asset']
+    >['histories']['nodes'][0],
+    i: number,
+  ) => {
     switch (history.action) {
       case 'LISTING':
         invariant(history.unitPrice, 'unitPrice is required')
         return (
-          <ListingListItem
-            {...history}
-            key={i}
-            currency={history.currency}
-            unitPrice={history.unitPrice}
-          />
+          <ListingListItem {...history} key={i} unitPrice={history.unitPrice} />
         )
 
       case 'PURCHASE':
@@ -60,7 +79,6 @@ const HistoryList: VFC<IProps> = ({ chainId, collectionAddress, tokenId }) => {
           <PurchaseListItem
             {...history}
             key={i}
-            currency={history.currency}
             unitPrice={history.unitPrice}
             toAddress={history.toAddress}
             blockExplorer={blockExplorer}
@@ -69,18 +87,6 @@ const HistoryList: VFC<IProps> = ({ chainId, collectionAddress, tokenId }) => {
 
       case 'TRANSFER':
         invariant(history.toAddress, 'toAddress is required')
-        if (
-          history.fromAddress === '0x0000000000000000000000000000000000000000'
-        ) {
-          return (
-            <MintListItem
-              {...history}
-              key={i}
-              blockExplorer={blockExplorer}
-              toAddress={history.toAddress}
-            />
-          )
-        }
         return (
           <TransferListItem
             {...history}
@@ -90,24 +96,60 @@ const HistoryList: VFC<IProps> = ({ chainId, collectionAddress, tokenId }) => {
           />
         )
 
+      case 'MINT':
+        invariant(history.toAddress, 'toAddress is required')
+        return (
+          <MintListItem
+            {...history}
+            key={i}
+            blockExplorer={blockExplorer}
+            toAddress={history.toAddress}
+          />
+        )
+
+      case 'BURN':
+        invariant(history.fromAddress, 'fromAddress is required')
+        return (
+          <BurnListItem
+            {...history}
+            key={i}
+            fromAddress={history.fromAddress}
+          />
+        )
+
       case 'LAZYMINT':
         return <LazyMintListItem {...history} key={i} />
     }
   }
 
-  if (loading && !historyData)
-    return (
-      <SkeletonList items={5}>
-        <SkeletonListItem image subtitle caption />
-      </SkeletonList>
-    )
-  if (histories.length === 0)
-    return (
-      <Text as="p" variant="text" color="gray.500">
-        {t('history.none')}
-      </Text>
-    )
-  return <List>{histories.map((history, i) => ListItem(history, i))}</List>
+  return (
+    <>
+      <HistoryListFilter filter={filter} onFilterChange={onFilterChange} />
+      {!histories ? (
+        <SkeletonList items={5}>
+          <SkeletonListItem image subtitle caption />
+        </SkeletonList>
+      ) : histories.length > 0 ? (
+        <List>{histories.map((history, i) => ListItem(history, i))}</List>
+      ) : (
+        <Text as="p" variant="text" color="gray.500">
+          {t('history.none')}
+        </Text>
+      )}
+      {histories?.length !== 0 && (
+        <Pagination
+          page={page}
+          onPageChange={setPage}
+          hasNextPage={historyData?.asset?.histories.pageInfo.hasNextPage}
+          hasPreviousPage={
+            historyData?.asset?.histories.pageInfo.hasPreviousPage
+          }
+          withoutLimit
+          withoutNumbers
+        />
+      )}
+    </>
+  )
 }
 
 export default HistoryList
